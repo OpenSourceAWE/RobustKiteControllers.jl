@@ -635,10 +635,10 @@ end
 
         # Canary: catch an accidental edit of the YAML. EXPECTED to change on a
         # deliberate re-identification -- update it then, nothing else here.
-        # Re-identified on 2026-10-05 with the wing drag (wing_drag_coeff 0.03, commit 36b665b;
-        # before: 0.31377205956495025, 2026-10-02, at 1/90 s and VSM interval 5, without drag;
-        # 0.3062365853867301, 2026-09-29, at 1/60 s).
-        @test turn_rate_coeffs([0.0, 0.0, 40.0], 0.25).c1 ≈ 0.2544866619072098
+        # Back to the 2026-10-02 identification without wing drag, at 1/90 s and VSM interval 5
+        # (2026-10-25; with wing_drag_coeff 0.03, 2026-10-05 to 2026-10-25: 0.2544866619072098;
+        # 2026-09-29, at 1/60 s: 0.3062365853867301).
+        @test turn_rate_coeffs([0.0, 0.0, 40.0], 0.25).c1 ≈ 0.31377205956495025
     end
 
     @testset "turn_rate_coeffs interpolation (conditions block)" begin

@@ -6372,3 +6372,34 @@ max d 4.9-5.0° unchanged):
 Worse: Maasvlakte 8 m/s (+7 %), 8.5 (+11 %), 9 (+12 %). Open: the 0.5-1.5° of sag left at
 Cabauw 8-10 m/s is not gravity; `el_offset_final` and the low-wind schedule's lift were not
 re-tuned; Maasvlakte could get its own lobe lift (the two sites share this file).
+
+## 2026-10-25 — Wing drag back to 0: every identified value back to 2026-10-02
+
+`wing_drag_coeff` 0.03 -> 0.0 in `kite_settings_psm.yaml` and `kite_settings_psm_kernel.yaml`,
+and everything identified on the kite with drag (2026-10-05/06) back to the last
+identification without it (2026-10-02, commit ce552c3): `turn_rate_coeffs.yaml`,
+`course_loop_model.yaml`, `kite_correction_measured.csv`, `depower_conversion.yaml`, and `heading_d` 0.146 -> 0.141 in `fc_settings_reelout.yaml`
+(`attractor_lead_time` was already back at 1.05). The provenance is backfilled with the
+drag-free `kite_id` 867207c8156c; no other value of the kite fingerprint changed since.
+
+Not reverted: the 0.40 depower cell and the larger relay amplitudes of the turn-rate table
+(9bb6d79) exist only for the kite with drag, so the table ends at 0.375 again.
+`course_link_measured.csv` is re-measured without drag (`measure_course_link.jl`, 300 / 200 /
+150 m, command never on its clamp) instead of reverted: the 2026-10-01 file's 150 m point was
+the enlarged test pattern only. The model is no longer conservative at 200 m:
+
+| tether | v_a | delay margin measured / model | gain margin measured / model |
+|--:|--:|--|--|
+| 300 m | 33.1 | 0.214 / 0.186 s (−13 %) | 4.48 / 2.10 |
+| 200 m | 34.5 | 0.121 / 0.144 s (**+19 %**) | 4.05 / 2.04 |
+| 150 m | 34.9 | 0.280 / 0.154 s (−45 %) | 2.58 / 2.09 |
+
+With the drag all three were conservative (0.305/0.439/0.383 s measured against
+0.287/0.223/0.238 s). The 200 m plant reproduces the 2026-10-01 measurement without drag
+(|G| 1.95-1.97 at 0.63-0.65 Hz, phase −158°), so this is the drag-free kite, not noise; the
+check only exists since 2026-10-06. The model lacks the gain bump at 0.6-0.7 Hz there; its
+kite correction is measured at 300 m only.
+
+The high-wind box of `traj_opt.yaml` (1290d50, b68455e: ±34° azimuth, 13°
+elevation half-span) and `request_depower_estimate` were sized for the drag and are kept.
+The scenarios in `output/scenarios/` were flown with the drag.
