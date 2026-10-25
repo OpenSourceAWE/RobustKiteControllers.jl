@@ -54,3 +54,10 @@ startup_ladder_report
 ladder_line
 startup_log_lines
 ```
+
+## Optimizer caches
+
+```@docs
+clear_opt_failures
+clear_opt_chain_cache
+```

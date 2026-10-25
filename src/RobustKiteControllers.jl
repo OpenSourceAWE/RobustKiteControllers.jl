@@ -103,6 +103,9 @@ export RunSetup
 # A run's log messages written to a file, and what they say about its startup retries.
 export with_run_log, startup_ladder_report, ladder_line, startup_log_lines
 
+# The optimizer's caches of failed requests and of applied results (src/awetrim_client.jl).
+export clear_opt_failures, clear_opt_chain_cache
+
 """
     rkc_data_path() -> String
 
