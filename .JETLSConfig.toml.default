@@ -1,0 +1,7 @@
+# The example scripts open with a docstring of the whole script, followed by a blank line.
+[[diagnostic.patterns]]
+pattern = "lowering/orphaned-docstring"
+match_by = "code"
+match_type = "literal"
+severity = "off"
+path = "examples/**/*.jl"
