@@ -2,8 +2,8 @@
 # Copyright (c) 2026 Uwe Fechner
 # SPDX-License-Identifier: MIT
 #
-# bash script to install the add_run_server branch of https://github.com/awegroup/AWETrim
-# in the folder ../../AWETrim
+# bash script to install the develop branch of https://github.com/awegroup/AWETrim
+# in the folder ../AWETrim
 #
 # AWETrim is a Python project, so it gets its own venv with the dev and server
 # extras installed in editable mode; bin/run_server (here and in AWETrim) expects
