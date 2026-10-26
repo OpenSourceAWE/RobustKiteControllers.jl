@@ -6432,3 +6432,9 @@ All five pass all 10 criteria. The new AWETrim is the larger change: it lets out
 worth 14.1 against 11.9 kW measured. `depower_fixed` (`traj_opt.yaml`, `seed:`) pins the tape length
 of every `/init`; it was added for the pinned run. Cabauw 10's 0.376 is just past the turn-rate
 table's 0.375 end.
+
+`build_all_scenarios.jl` then re-flew all 22 scenarios with the new AWETrim: 21 passed on the
+first build. Maasvlakte 5 m/s (6.4 m/s at 100 m, the low-wind schedule's last row: 150 m,
+guess at 29°) failed its startup solve at 29, 28 and 31°, and converges from 27°, so
+`startup_retry_el_offsets` [-1, 2] -> [-1, 2, -2]: it flew from 27°, all 10 criteria, 3102 W
+measured, ratio 0.77.

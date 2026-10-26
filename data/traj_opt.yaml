@@ -17,7 +17,7 @@ traj_opt:
     guess_el_center:  29.0   # centre elevation of the guess; first knob to move on a 422 [deg]
     guess_el_center_high:      30.0   # centre elevation at/above the ref wind (a step, not a ramp) [deg]
     guess_el_center_wind_ref:   8.0   # wind at/above which guess_el_center_high applies [m/s]
-    startup_retry_el_offsets: [-1.0, 2.0]   # seeds tried in order on a startup 422; [] never retries [deg]
+    startup_retry_el_offsets: [-1.0, 2.0, -2.0]   # seeds tried in order on a startup 422; [] never retries [deg]
 
   seed:  # depower seed of the solve, ramped with the wind
     input_depower:     1.6   # depower SEED in metres of tape (server bounds 1.1-2.3), not depower_setpoint [m]
