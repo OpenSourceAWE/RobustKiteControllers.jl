@@ -10,6 +10,8 @@ Start an interactive Julia REPL for RobustKiteControllers, usually via the alias
 
 The script
   - sets JULIA_PKG_SERVER_REGISTRY_PREFERENCE=eager, MKL_NUM_THREADS=4 and PLOT=1
+  - stops if the Julia version differs from the one used by bin/install
+    (file install_version_<julia version>.txt); run bin/install again in that case
   - starts Julia with --project, using the project in the repository root; the
     examples and the tests activate their own projects
   - uses all threads (-t auto) and, for Julia 1.10 and newer, --gcthreads=4,1
@@ -48,7 +50,18 @@ export JULIA_PKG_SERVER_REGISTRY_PREFERENCE=eager
 export MKL_NUM_THREADS=4
 export PLOT=1
 
-julia_major=$(julia --version | sed -E 's/^julia version ([0-9]+\.[0-9]+).*/\1/')
+julia_version=$(julia --version | awk '{print($3)}')
+julia_major=$(echo "$julia_version" | sed -E 's/^([0-9]+\.[0-9]+).*/\1/')
+
+# A system image from another Julia version makes KaimonGate segfault (Kaimon.jl#104)
+if [[ -f "install_version_${julia_major}.txt" ]]; then
+    install_version=$(cat "install_version_${julia_major}.txt")
+    if [[ "$julia_version" != "$install_version" ]]; then
+        echo -e "\033[1;31mWarning:\033[0m The Julia version has changed (installed: $install_version, current: $julia_version)."
+        echo "Please run bin/install again!"
+        exit 1
+    fi
+fi
 
 JULIA_ARGS=(--project -t auto)
 if [[ $julia_major =~ ^1\.[1-9][0-9]$ ]]; then

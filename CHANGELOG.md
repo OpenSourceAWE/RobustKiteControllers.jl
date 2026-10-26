@@ -4,6 +4,13 @@
 
 ### Changed
 
+- `bin/install` records the Julia version in `install_version_<version>.txt` and moves
+  the system image to `bin/kps-image-<version>.so.bak` if it was installed with another
+  Julia version (or the file is missing); `bin/run_julia` stops if the Julia version
+  changed since `bin/install`, as in KiteControllers. `bin/install` also precompiles
+  KaimonGate and ZMQ on their own, with the system image if there is one. A system image from an older Julia
+  made every package cache invalid, and KaimonGate then segfaulted while compiling ZMQ
+  ([Kaimon.jl#104](https://github.com/kahliburke/Kaimon.jl/issues/104)).
 - The examples use V3Kite v2.0.0 (was the `delay-lag-fit` branch), which needs
   SymbolicAWEModels 0.20, KiteUtils 0.13, VortexStepMethod 6 and KiteViewers 0.7; the
   compat bounds of `examples/Project.toml` and both default manifests are updated. The

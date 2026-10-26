@@ -28,10 +28,19 @@ Make this checkout ready to use with the tested package versions:
   - copy Manifest-v<version>.toml.default to Manifest-v<version>.toml; if this
     changes the manifest, delete the system image bin/kps-image-<version>.so,
     because it was built with other package versions
+  - if the Julia version differs from the one in install_version_<version>.txt,
+    or that file is missing, move the system image to bin/kps-image-<version>.so.bak,
+    because it may have been built with another Julia version
   - copy each other *.default file in the main folder and in data/, e.g.
     data/gui.yaml.default, to its name without .default if that file does not
     exist yet
   - resolve, instantiate and precompile the package and the examples
+  - if KaimonGate is in the global environment, precompile it and its dependency
+    ZMQ on their own, with the system image if there is one; compiled later inside
+    KaimonGate's precompile process, ZMQ segfaults with a custom system image
+    (https://github.com/kahliburke/Kaimon.jl/issues/104)
+  - record the Julia version in install_version_<version>.txt, which
+    bin/run_julia checks
 
 Without parameters nothing is asked and nothing outside the repository is changed,
 except that packages and precompiled files are added to the Julia depot.
@@ -275,6 +284,12 @@ if $manifest_changed && [ -f "$sysimage" ]; then
     rm -f "$sysimage"
     echo "Deleted the system image $sysimage, because the manifest changed"
 fi
+julia_version=$(julia --startup-file=no -e 'print(VERSION)')
+version_file="install_version_$version.txt"
+if [ -f "$sysimage" ] && [ "$(cat "$version_file" 2>/dev/null)" != "$julia_version" ]; then
+    mv -f "$sysimage" "$sysimage.bak"
+    echo "Moved $sysimage to $sysimage.bak, because it may be from another Julia version"
+fi
 # Keep local configuration files, only provide the default if there is none
 for default in .*.default *.default data/*.default; do
     [ -f "$default" ] || continue
@@ -294,6 +309,14 @@ install_env() {
 
 install_env .
 install_env examples
+image_args=()
+[ -f "$sysimage" ] && image_args=(-J "$sysimage")
+if ! julia --startup-file=no --project="@v$version" ${image_args[@]+"${image_args[@]}"} -e '
+if Base.identify_package("KaimonGate") !== nothing
+    using Pkg; Pkg.precompile("KaimonGate")
+end'; then
+    echo "Warning: Precompiling KaimonGate failed." >&2
+fi
 if $install_revise; then
     echo "Adding Revise to the global environment ..."
     julia --startup-file=no -e 'using Pkg; Pkg.activate(); Pkg.add("Revise")'
@@ -307,6 +330,8 @@ fi
 if $run_tests; then
     julia --startup-file=no --project -e 'using Pkg; Pkg.test()'
 fi
+
+echo "$julia_version" > "$version_file"
 
 echo "Installation for Julia $version finished."
 
