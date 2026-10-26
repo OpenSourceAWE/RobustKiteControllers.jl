@@ -171,7 +171,7 @@ st = RunState(; l_set = setup.l_set, opt_r_scale = setup.opt_r_scale, opt_r_min 
 
 merge_into!(setup, solve_startup_path!(setup, st))
 toc("Received the optimized path in: ")
-log_startup_reply(setup.fcs, st.opt_result, setup.opt_r_min)
+log_startup_reply(setup.fcs, setup.tos, st.opt_result, setup.opt_r_min)
 log_lobe_lift(setup.fcs, st.opt_result)
 # The turn-rate law the retry reads a path against; `startup_feasibility` looks it up again later.
 st.c1_startup = setup.c1_at_depower(setup.fcs.course.depower_setpoint)

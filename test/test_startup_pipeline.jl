@@ -71,7 +71,8 @@ function fly_startup(; tos = Dict{Symbol, Any}(), wind = "default", path_for = p
         GUI_STATE_FILE_OVERRIDE[] = gui
         FAILED_TRAJECTORY_DIR[] = traj_dir
         KiteUtils.set_data_path(rkc_data_path())
-        overrides = merge(Dict{Symbol, Any}(:base_url => fs.url,
+        # The gate cases are sized at the plain conversion, not the shipped depower_offset.
+        overrides = merge(Dict{Symbol, Any}(:base_url => fs.url, :depower_offset => 0.0,
                                             :opt_success_cache => false, :opt_failure_cache => false),
                           tos)
         inputs = merge(run_input_defaults(), (; output_path = mktempdir(), tos_overrides = overrides))
@@ -79,7 +80,7 @@ function fly_startup(; tos = Dict{Symbol, Any}(), wind = "default", path_for = p
         st = RunState(; l_set = setup.l_set, opt_r_scale = setup.opt_r_scale,
                       opt_r_min = setup.opt_r_min, depower_flown_opt = setup.fcs.course.depower_setpoint)
         merge_into!(setup, solve_startup_path!(setup, st))
-        log_startup_reply(setup.fcs, st.opt_result, setup.opt_r_min)
+        log_startup_reply(setup.fcs, setup.tos, st.opt_result, setup.opt_r_min)
         log_lobe_lift(setup.fcs, st.opt_result)
         st.c1_startup = setup.c1_at_depower(setup.fcs.course.depower_setpoint)
         adopt_startup_path!(setup, st)
@@ -117,7 +118,7 @@ end
         @test st.opt_paths_raw[1][1] ≈ TIGHT[1] && st.opt_downloops == !UP_LOOPS
         @test isnothing(st.incumbent_score) && isempty(r.saved)
         @test setup.feas.feas_start.margin >= setup.tos.gates.min_feasibility_margin
-        @test st.depower_flown_opt ≈ RobustKiteControllers.awetrim_depower_to_v3kite(1.53)
+        @test st.depower_flown_opt ≈ RobustKiteControllers.awetrim_depower_to_v3kite(1.53, setup.tos)
         # The state the loop starts from.
         @test st.n_path == length(setup.fec.az_path) == length(st.raw_az)
         @test length(st.p5_history) == 1 && st.cc isa CourseController

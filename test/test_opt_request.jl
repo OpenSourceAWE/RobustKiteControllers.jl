@@ -21,9 +21,11 @@ set_depower_conversion!(l_dp -> (l_dp - 0.2) / 5)
         old = RobustKiteControllers.DEPOWER_CONVERSION[]
         try
             set_depower_conversion!(nothing)
-            @test_throws ErrorException awetrim_depower_to_v3kite(1.6)
+            tos = TrajOptSettings()
+            @test_throws ErrorException awetrim_depower_to_v3kite(1.6, tos)
             set_depower_conversion!(l_dp -> (l_dp - 0.2) / 5)
-            @test awetrim_depower_to_v3kite(1.6) ≈ 0.28
+            @test awetrim_depower_to_v3kite(1.6, TrajOptSettings(; depower_offset = 0.0)) ≈ 0.28
+            @test awetrim_depower_to_v3kite(1.6, TrajOptSettings(; depower_offset = -0.013)) ≈ 0.267
         finally
             set_depower_conversion!(old)
         end
@@ -74,7 +76,7 @@ set_depower_conversion!(l_dp -> (l_dp - 0.2) / 5)
         @test rc.turn_radius_reel == turn_radius_lap_reelout(tos, 8.0)
         @test rc.opt_r_scale ≈ (1 + rc.turn_radius_reel / l_opt) * tos.gates.turn_radius_headroom
         # Sized at the seed's depower, converted to V3Kite's: the reply is flown at its own.
-        @test rc.depower_request ≈ awetrim_depower_to_v3kite(depower_seed(tos, 8.0))
+        @test rc.depower_request ≈ awetrim_depower_to_v3kite(depower_seed(tos, 8.0), tos)
         @test rc.c1_request == turn_rate_coeffs(fcs.run.body_damping, rc.depower_request).c1
         @test rc.opt_r_min ≈ rc.opt_r_scale * tos.gates.min_feasibility_margin /
                              (rc.c1_request * fcs.course.max_steering)

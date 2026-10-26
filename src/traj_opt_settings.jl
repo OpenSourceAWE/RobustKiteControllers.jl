@@ -82,6 +82,8 @@ $(TYPEDFIELDS)
     request_depower_per_wind = 0.0
     "Tape length `l_dp` [m] every `/init` pins the depower to, see [`depower_spec`](@ref); `0.0` = optimized"
     depower_fixed = 0.0
+    "Added to the converted reply, see [`awetrim_depower_to_v3kite`](@ref); negative = more power [-]"
+    depower_offset = 0.0
 end
 
 """

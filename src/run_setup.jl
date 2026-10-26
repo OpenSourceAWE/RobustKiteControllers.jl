@@ -359,7 +359,7 @@ function setup_run(inputs; init_model)
     # The depower a reply is FLOWN at, which is what every gate and request must read c1 at.
     pattern_depower(reply) =
         !isnothing(reply.depower) ?
-            awetrim_depower_to_v3kite(reply.depower.value) : fcs.course.depower_setpoint
+            awetrim_depower_to_v3kite(reply.depower.value, tos) : fcs.course.depower_setpoint
     # The elevation floor of every candidate path, the startup gates' and `check_startup_path`'s.
     el_floor = fcs.run.min_elevation + tos.gates.candidate_elevation_margin
 

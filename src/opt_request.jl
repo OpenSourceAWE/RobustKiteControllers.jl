@@ -19,15 +19,17 @@ the model, so the caller installs it: `examples/model_setup.jl` installs V3Kite'
 set_depower_conversion!(f) = (DEPOWER_CONVERSION[] = f; nothing)
 
 """
-    awetrim_depower_to_v3kite(l_dp) -> Float64
+    awetrim_depower_to_v3kite(l_dp, tos) -> Float64
 
 Convert an AWETrim power-tape length `l_dp` [m] (`input_depower`) into V3Kite's `rel_depower`
-with the conversion installed by [`set_depower_conversion!`](@ref); an error if none is.
+with the conversion installed by [`set_depower_conversion!`](@ref), plus
+`tos.seed.depower_offset`; an error if no conversion is installed. The offset trims the
+two models to the same power: a power ratio below 1 asks for a negative offset.
 """
-function awetrim_depower_to_v3kite(l_dp)
+function awetrim_depower_to_v3kite(l_dp, tos)
     f = DEPOWER_CONVERSION[]
     isnothing(f) && error("No depower conversion installed, call set_depower_conversion! first.")
-    return Float64(f(l_dp))
+    return Float64(f(l_dp)) + tos.seed.depower_offset
 end
 
 "AWETrim's own bounds on `input_depower`, from `src/awetrim/utils/defaults.py` [m]."
@@ -216,7 +218,7 @@ function request_constraints(tos, fcs, inflow, cap_wind, l_opt)
     turn_radius_reel = turn_radius_lap_reelout(tos, inflow.wind_speed)
     opt_r_scale = (1 + turn_radius_reel / l_opt) * tos.gates.turn_radius_headroom
     depower_request = awetrim_depower_to_v3kite(request_depower_estimate(tos, inflow.wind_speed,
-                                                                         cap_wind))
+                                                                         cap_wind), tos)
     c1_request = try
         turn_rate_coeffs(fcs.run.body_damping, depower_request).c1
     catch exc

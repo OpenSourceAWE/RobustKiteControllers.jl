@@ -6438,3 +6438,20 @@ first build. Maasvlakte 5 m/s (6.4 m/s at 100 m, the low-wind schedule's last ro
 guess at 29°) failed its startup solve at 29, 28 and 31°, and converges from 27°, so
 `startup_retry_el_offsets` [-1, 2] -> [-1, 2, -2]: it flew from 27°, all 10 criteria, 3102 W
 measured, ratio 0.77.
+
+## 2026-10-26 — `depower_offset`: power ratio back to ~1.0
+
+With V3Kite's linear tape map and the new AWETrim the Maasvlakte scenarios flew a mean
+`power_ratio` of 0.75 (0.70-0.88 over 3.5-11 m/s), at about 0.286 depower up to 8.5 m/s.
+`traj_opt.yaml` `seed.depower_offset` is now added to every converted reply
+(`awetrim_depower_to_v3kite(l_dp, tos)`). Maasvlakte, 150 m reel-out, all 10 criteria passed in every run:
+
+| offset | 4 m/s | 7 m/s | 10 m/s | mean |
+|--|--|--|--|--|
+| 0 (scenarios) | 0.78 | 0.72 | 0.74 | 0.75 |
+| -0.013 | 0.97 | 0.88 | 0.91 | 0.92 |
+| -0.018 | 1.04 | 0.94 | 0.98 | 0.99 |
+
+The -0.013 step gives d ln P / d rel_depower ~ -16. At -0.018: depower 0.268/0.268/0.287,
+measured 1962/11692/23126 W. The peak phase-4 force at 10 m/s rose from 7228 to 7735 N,
+above the 7200 N `f_high`; the other wind speeds were not re-flown.

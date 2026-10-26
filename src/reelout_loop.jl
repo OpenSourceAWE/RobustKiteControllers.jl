@@ -645,7 +645,7 @@ function evaluate_candidate!(st::RunState, setup, tab, phase, l_now, el_target, 
     n_native = min(RESAMPLE_POINTS, length(new_az) - 1)
     # The turn authority THIS reply will be flown with, read off `tab`.
     cand_c1 = c1_at_phase(phase, awetrim_depower_to_v3kite(
-        Float64(tab["optimized_parameters"]["input_depower"])))
+        Float64(tab["optimized_parameters"]["input_depower"]), tos))
     lifted(fw) = new_el .+ el_target .+ fw .* wing_delta
     function lifted_margin(el_try)
         isnan(feas.c1) && return Inf
@@ -728,7 +728,7 @@ function install_candidate!(st::RunState, setup, t, phase, l_now, el_target, tab
     st.blend_t0 = t
     # input_depower moves only for the `tab` that made it here.
     let l_dp = Float64(tab["optimized_parameters"]["input_depower"])
-        st.depower_flown_opt = awetrim_depower_to_v3kite(l_dp)
+        st.depower_flown_opt = awetrim_depower_to_v3kite(l_dp, tos)
         st.depower_blend_from = st.depower_flown
         st.depower_blend_to = st.depower_flown_opt
         st.depower_blend_t0 = t

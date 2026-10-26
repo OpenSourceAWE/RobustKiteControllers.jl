@@ -100,7 +100,7 @@ RobustKiteControllers.set_depower_conversion!(l_dp -> (l_dp - 0.2) / 5)
         @test length(st.opt_paths_raw) == 2 && st.opt_paths_at[end] == (30.5, 4)
         @test st.pred_timeline[end] == (t = 30.5, power = 18000.0)
         @test st.p5_history[end].margin == 1.7 && st.p5_history[end].t == 30.5
-        @test st.depower_flown_opt == awetrim_depower_to_v3kite(1.42)
+        @test st.depower_flown_opt == awetrim_depower_to_v3kite(1.42, setup.tos)
         @test st.depower_blend_from == 0.27 && st.depower_blend_to == st.depower_flown_opt
         @test length(setup.opt_depower_log) == 1 && st.chk_points == 99
         @test setup.fec.az_path ≈ st.blend_from[1]           # the aligned OLD path, at w = 0

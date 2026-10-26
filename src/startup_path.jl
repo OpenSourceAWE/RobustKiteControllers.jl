@@ -77,15 +77,15 @@ function solve_startup_path!(setup, st::RunState)
 end
 
 """
-    log_startup_reply(fcs, opt_result, opt_r_min)
+    log_startup_reply(fcs, tos, opt_result, opt_r_min)
 
 Say what the startup reply was optimized at: its depower converted to the V3Kite `rel_depower` flying at
 the SAME power, against the flown setpoint, and the optimizer's own curvature diagnostic, physical and
 comparable with `min_feasibility_margin`.
 """
-function log_startup_reply(fcs, opt_result, opt_r_min)
+function log_startup_reply(fcs, tos, opt_result, opt_r_min)
     if !isnothing(opt_result.depower)
-        u_p_equiv = awetrim_depower_to_v3kite(opt_result.depower.value)
+        u_p_equiv = awetrim_depower_to_v3kite(opt_result.depower.value, tos)
         @info @sprintf("Optimized at depower l_dp = %.3f m (mode %s) = rel_depower \
                         %.3f equivalent, against the flown depower_setpoint = %.3f — \
                         a %+.3f gap.",
@@ -418,7 +418,7 @@ function finish_startup!(setup, st::RunState)
     end
 
     if !isnothing(st.opt_result.depower)
-        st.depower_flown_opt = awetrim_depower_to_v3kite(st.opt_result.depower.value)
+        st.depower_flown_opt = awetrim_depower_to_v3kite(st.opt_result.depower.value, tos)
         push!(opt_depower_log,
               (; t = 0.0, l_dp = st.opt_result.depower.value, u_p_equiv = st.depower_flown_opt))
     end
