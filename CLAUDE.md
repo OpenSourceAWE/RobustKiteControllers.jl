@@ -148,7 +148,7 @@ clear_opt_chain_cache()       # forget them all; or delete the directory
 
 The key cannot see the server: clear the cache, or set `opt_success_cache: false`
 in `data/traj_opt.yaml`, after any AWETrim change. Otherwise a run replays the old
-optimizer's answers.
+optimizer's answers. `bin/install_awetrim` clears both caches at its end.
 
 Only `simple_opt_reelout.jl` writes the marker; copy its two lines (the `rm` next to
 `mkpath(output_path)` in the script itself and the `open(RUN_DONE_FILE, "w")` block at

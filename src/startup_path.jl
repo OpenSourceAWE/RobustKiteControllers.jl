@@ -22,7 +22,7 @@ function startup_params(setup, el_center)
                winch_params = winch_first_lap, inflow_conditions = inflow,
                trajectory = Trajectory(collect(az), collect(el)),
                input_depower = depower_seed(tos, inflow.wind_speed),
-               reg_weight = REG_WEIGHT,
+               reg_weight = REG_WEIGHT, depower = depower_spec(tos),
                min_turn_radius = opt_r_min, pattern_limits = opt_box)
 end
 

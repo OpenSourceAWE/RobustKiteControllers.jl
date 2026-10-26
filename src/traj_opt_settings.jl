@@ -80,6 +80,8 @@ $(TYPEDFIELDS)
     request_depower_wind_ref = 0.0
     "Tape length added to the estimate per m/s of wind aloft above that; one-sided [m/(m/s)]"
     request_depower_per_wind = 0.0
+    "Tape length `l_dp` [m] every `/init` pins the depower to, see [`depower_spec`](@ref); `0.0` = optimized"
+    depower_fixed = 0.0
 end
 
 """

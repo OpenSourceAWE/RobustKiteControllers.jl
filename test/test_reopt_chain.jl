@@ -15,6 +15,8 @@ using RobustKiteControllers
 import RobustKiteControllers: reoptimize!, REOPT_POLL_INTERVAL, OptChain, InflowConditions, WinchParams,
     TrajOptSettings, awetrim_depower_to_v3kite, opt_request_key, min_turn_radius_request
 @isdefined(fake_server) || include(joinpath(@__DIR__, "fake_awetrim_server.jl"))
+# V3Kite's depower_length_to_percentage / 100, which the tests cannot load.
+RobustKiteControllers.set_depower_conversion!(l_dp -> (l_dp - 0.2) / 5)
 
 @testset verbose = true "reopt_chain" begin
     fcs = FC_Settings()

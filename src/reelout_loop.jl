@@ -315,6 +315,7 @@ function request_reopt!(st::RunState, setup, t, phase, l_now)
                                                                   collect(guess_el_r)),
                                           input_depower = depower_seed(tos, inflow.wind_speed),
                                           reg_weight = REG_WEIGHT,
+                                          depower = depower_spec(tos),
                                           min_turn_radius = st.opt_r_min,
                                           pattern_limits = st.opt_box_now)
                 # A known failure is served by `opt_chain`, not skipped here: skipping would leave
@@ -593,6 +594,7 @@ function solve_cold!(st::RunState, setup, l_now, el_seed, box)
         trajectory = Trajectory(collect(guess_az), collect(guess_el)),
         input_depower = depower_seed(tos, inflow.wind_speed),
         reg_weight = REG_WEIGHT,
+        depower = depower_spec(tos),
         min_turn_radius = st.opt_r_min,
         pattern_limits = box)
     reply = chain_init(opt_chain, params)

@@ -6403,3 +6403,32 @@ kite correction is measured at 300 m only.
 The high-wind box of `traj_opt.yaml` (1290d50, b68455e: ±34° azimuth, 13°
 elevation half-span) and `request_depower_estimate` were sized for the drag and are kept.
 The scenarios in `output/scenarios/` were flown with the drag.
+
+## 2026-10-26 — One linear depower conversion: V3Kite's tape map
+
+`awetrim_depower_to_v3kite` now converts AWETrim's power-tape length with V3Kite's own map
+(`calibration.jl`, `depower_length_to_percentage`), `rel_depower = (l_dp - 0.2)/5`, installed by
+`examples/model_setup.jl` through `set_depower_conversion!` since `src/` does not depend on V3Kite.
+Removed: the identified quadratic of `data/depower_conversion.yaml` (offset 0.1010 at pivot
+1.43 m, slope 0.1147, curvature 0.1905) and `examples/identify_depower_conversion.jl`, and
+`simple_opt_fig8.jl`'s `l_dp = 0.6 + 5*u_p` for the flown setpoint. At the pivot the new map
+flies 0.246 instead of 0.267, i.e. 0.021 more powered, and 0.027 at 1.94 m
+(0.348 against 0.375).
+
+Flown the same day with the new AWETrim (`bin/install_awetrim`, both optimizer caches
+cleared), 150 m reel-out, against the scenarios of 2026-10-06 (old AWETrim, quadratic map):
+
+| run | `l_dp` [m] | `rel_depower` | mean force [N] | predicted / measured [W] | ratio |
+|--|--|--|--|--|--|
+| Maasvlakte 7, reference | 1.42-1.44 | 0.272-0.274 | 4435 | 11772 / 11886 | 1.01 |
+| Maasvlakte 7 | 1.628 | 0.286 | 3666 | 12372 / 8907 | 0.72 |
+| Maasvlakte 7, `depower_fixed` 1.43 | 1.43 | 0.246 | 4951 | 23501 / 14132 | 0.60 |
+| Cabauw 10, reference | 1.908 | 0.396 | 6690 | 22455 / 22544 | 1.00 |
+| Cabauw 10 | 2.078 | 0.376 | 5928 | 22828 / 18860 | 0.83 |
+
+All five pass all 10 criteria. The new AWETrim is the larger change: it lets out about
+0.2 m more tape than the old one, and at the old tape length it predicts twice the power
+(23.5 against 11.8 kW). At the same tape length the linear map flies 0.246 where the reference flew 0.274,
+worth 14.1 against 11.9 kW measured. `depower_fixed` (`traj_opt.yaml`, `seed:`) pins the tape length
+of every `/init`; it was added for the pinned run. Cabauw 10's 0.376 is just past the turn-rate
+table's 0.375 end.

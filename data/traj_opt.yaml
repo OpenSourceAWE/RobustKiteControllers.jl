@@ -32,6 +32,7 @@ traj_opt:
     request_depower:          1.45  # estimate at and below the ref wind aloft [m]
     request_depower_wind_ref: 10.4  # wind at the caps' height above which it ramps [m/s]
     request_depower_per_wind: 0.05  # tape added per m/s of wind aloft above that [m/(m/s)]
+    depower_fixed:           0.0   # pin the solved tape length to this; 0.0 lets the server optimize it [m]
 
   box:  # pattern box the optimizer solves UNDER; 0.0 keeps the server default (|az| <= 45.8, 0.6 <= el <= 51.6)
     pattern_azimuth_max: 28.0        # closes the wide basin seen at 5.5 m/s; good runs fly ±18-25 [deg]

@@ -16,6 +16,10 @@
 # rather than re-cloned, and the venv is only created if it is missing. A checkout
 # with local modifications is left alone apart from the dependency install.
 #
+# At the end the optimizer's two caches in output/ are cleared (the failed-request
+# cache opt_failure_cache.yaml and the solution cache opt_chain_cache/): their keys
+# cannot see the server, so they would replay the old AWETrim's answers.
+#
 # Usage: bin/install_awetrim
 set -euo pipefail
 
@@ -26,6 +30,7 @@ TARGET="../AWETrim"
 if [[ $(basename "$(pwd)") == "bin" ]]; then
     cd ..
 fi
+RKC_ROOT=$(pwd)
 
 # --- prerequisites ------------------------------------------------------------
 for cmd in git python3; do
@@ -78,5 +83,10 @@ if ! venv/bin/python -c "import fastapi, uvicorn" 2>/dev/null; then
     echo "ERROR: the server dependencies are still missing after the install." >&2
     exit 1
 fi
+
+# --- optimizer caches ---------------------------------------------------------
+echo "Clearing the optimizer caches in $RKC_ROOT/output ..."
+rm -f "$RKC_ROOT/output/opt_failure_cache.yaml"
+rm -rf "$RKC_ROOT/output/opt_chain_cache"
 
 echo "Done. Start the AWETrim server with bin/run_server"
