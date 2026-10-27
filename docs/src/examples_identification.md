@@ -165,3 +165,17 @@ cross-track error to a step of the attractor offset, at constant length and duri
 fitted with a second-order model and compared with the closed-loop model of
 `stability_opt_reelout.jl`. The measured part works on the saved tests in `data/steptest/`
 without flying. This analysis is work in progress.
+
+## Validation of the aerodynamics against AWETrim
+
+### [`validate_lift_drag.jl`](https://github.com/OpenSourceAWE/RobustKiteControllers.jl/blob/main/examples/validate_lift_drag.jl)
+Compares V3Kite's lift and drag with AWETrim's reduced-order model at the same power-tape length
+and apparent wind speed. The kite is parked at 150 m, and the ground wind is trimmed in each block
+until the apparent wind speed reaches its target. AWETrim's `POST /aero_forces` is then queried at
+the measured apparent wind speed, for both LEI-V3 ROMs, at the ROM's own trim and at V3Kite's angle
+of attack. The results go to `output/lift_drag_validation.json`; `fly = false` re-queries AWETrim
+without flying. About 3 minutes of simulation.
+
+### [`show_validation.jl`](https://github.com/OpenSourceAWE/RobustKiteControllers.jl/blob/main/examples/show_validation.jl)
+Shows the saved comparison as an HTML page in the default browser: one table per ROM, with the
+deviation from V3Kite in percent and the points outside the ROM's validity band marked.
