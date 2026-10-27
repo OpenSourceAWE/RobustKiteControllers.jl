@@ -9,29 +9,26 @@ Settings and the package's turn-rate table in, numbers out; no optimizer.
 
 using Test
 using RobustKiteControllers
-import RobustKiteControllers: depower_conversion, with_depower_conversion, awetrim_depower_to_v3kite,
+import RobustKiteControllers: set_depower_conversion!, awetrim_depower_to_v3kite,
     DEPOWER_SEED_BOUNDS, depower_seed, min_turn_radius_request, request_constraints,
     pattern_limits_from, elevation_min_request
 
+# V3Kite's depower_length_to_percentage / 100, which the tests cannot load.
+set_depower_conversion!(l_dp -> (l_dp - 0.2) / 5)
+
 @testset verbose = true "opt_request" begin
     @testset "awetrim_depower_to_v3kite" begin
-        conv = depower_conversion()
-        # At the calibration point: l_dp = 0.6 + 5*u_p plus the calibrated offset, as ever.
-        @test awetrim_depower_to_v3kite(conv.pivot) ≈ (conv.pivot - 0.6) / 5 + conv.offset
-        # Away from it: slope and curvature about that point.
-        @test awetrim_depower_to_v3kite(conv.pivot + 0.2) - awetrim_depower_to_v3kite(conv.pivot) ≈
-              0.2 * conv.slope + 0.04 * conv.curvature
-        # A trial conversion is in force inside with_depower_conversion only, also after an error.
-        plain = merge(conv, (; slope = 0.2, curvature = 0.0))
-        @test with_depower_conversion(() -> awetrim_depower_to_v3kite(1.6), plain) ≈ 0.2 + conv.offset
-        @test_throws ErrorException with_depower_conversion(() -> error("trial"), plain)
-        @test depower_conversion() === conv
-        # Beyond the identified range the tangent at its end continues the parabola.
-        bent = merge(conv, (; slope = 0.1, curvature = 0.2, l_dp_min = 1.4, l_dp_max = 1.9))
-        at(l) = awetrim_depower_to_v3kite(l; conv = bent)
-        @test at(2.3) - at(1.9) ≈ 0.4 * (0.1 + 2 * 0.2 * (1.9 - bent.pivot))
-        @test at(1.1) - at(1.4) ≈ -0.3 * (0.1 + 2 * 0.2 * (1.4 - bent.pivot))
-        @test at(1.8) - at(bent.pivot) ≈ 0.1 * 0.37 + 0.2 * 0.37^2
+        old = RobustKiteControllers.DEPOWER_CONVERSION[]
+        try
+            set_depower_conversion!(nothing)
+            tos = TrajOptSettings()
+            @test_throws ErrorException awetrim_depower_to_v3kite(1.6, tos)
+            set_depower_conversion!(l_dp -> (l_dp - 0.2) / 5)
+            @test awetrim_depower_to_v3kite(1.6, TrajOptSettings(; depower_offset = 0.0)) ≈ 0.28
+            @test awetrim_depower_to_v3kite(1.6, TrajOptSettings(; depower_offset = -0.013)) ≈ 0.267
+        finally
+            set_depower_conversion!(old)
+        end
     end
 
     @testset "depower_seed" begin
@@ -79,7 +76,7 @@ import RobustKiteControllers: depower_conversion, with_depower_conversion, awetr
         @test rc.turn_radius_reel == turn_radius_lap_reelout(tos, 8.0)
         @test rc.opt_r_scale ≈ (1 + rc.turn_radius_reel / l_opt) * tos.gates.turn_radius_headroom
         # Sized at the seed's depower, converted to V3Kite's: the reply is flown at its own.
-        @test rc.depower_request ≈ awetrim_depower_to_v3kite(depower_seed(tos, 8.0))
+        @test rc.depower_request ≈ awetrim_depower_to_v3kite(depower_seed(tos, 8.0), tos)
         @test rc.c1_request == turn_rate_coeffs(fcs.run.body_damping, rc.depower_request).c1
         @test rc.opt_r_min ≈ rc.opt_r_scale * tos.gates.min_feasibility_margin /
                              (rc.c1_request * fcs.course.max_steering)

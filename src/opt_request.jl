@@ -5,70 +5,31 @@
 # `pattern_limits.jl`: the depower it starts from and how its reply converts to V3Kite's, and the
 # minimum turn radius. Pure: settings in, numbers out; only the client talks to the server.
 
-"File in `data/` holding the identified depower conversion, see [`depower_conversion`](@ref)"
-const DEPOWER_CONVERSION_FILE = "depower_conversion.yaml"
-
-"The conversion in force; `nothing` until [`depower_conversion`](@ref) first reads the file"
-const DEPOWER_CONVERSION = Ref{Union{Nothing, NamedTuple}}(nothing)
+"The tape length -> `rel_depower` map in force; `nothing` until [`set_depower_conversion!`](@ref)"
+const DEPOWER_CONVERSION = Ref{Union{Nothing, Function}}(nothing)
 
 """
-    load_depower_conversion(file = joinpath(rkc_data_path(), DEPOWER_CONVERSION_FILE))
-        -> NamedTuple
+    set_depower_conversion!(f)
 
-The identified conversion `(; offset, pivot, slope, curvature, l_dp_min, l_dp_max)` of
-`data/depower_conversion.yaml`, see [`awetrim_depower_to_v3kite`](@ref) and the file for
-what each value is and how it was measured.
+Install `f(l_dp) -> rel_depower`, the kite model's map from a depower-tape length [m] to its
+relative depower, used by [`awetrim_depower_to_v3kite`](@ref). The package does not depend on
+the model, so the caller installs it: `examples/model_setup.jl` installs V3Kite's
+`depower_length_to_percentage` (`calibration.jl`), divided by 100.
 """
-function load_depower_conversion(file = joinpath(rkc_data_path(), DEPOWER_CONVERSION_FILE))
-    d = YAML.load_file(file)["depower_conversion"]
-    return (; offset = Float64(d["offset"]), pivot = Float64(d["pivot"]),
-            slope = Float64(d["slope"]), curvature = Float64(d["curvature"]),
-            l_dp_min = Float64(d["l_dp_min"]), l_dp_max = Float64(d["l_dp_max"]))
-end
+set_depower_conversion!(f) = (DEPOWER_CONVERSION[] = f; nothing)
 
 """
-    depower_conversion() -> NamedTuple
+    awetrim_depower_to_v3kite(l_dp, tos) -> Float64
 
-The conversion in force, read from `data/depower_conversion.yaml` on first use. An
-identification replaces it for its trial runs with [`with_depower_conversion`](@ref).
+Convert an AWETrim power-tape length `l_dp` [m] (`input_depower`) into V3Kite's `rel_depower`
+with the conversion installed by [`set_depower_conversion!`](@ref), plus
+`tos.seed.depower_offset`; an error if no conversion is installed. The offset trims the
+two models to the same power: a power ratio below 1 asks for a negative offset.
 """
-function depower_conversion()
-    isnothing(DEPOWER_CONVERSION[]) && (DEPOWER_CONVERSION[] = load_depower_conversion())
-    return DEPOWER_CONVERSION[]
-end
-
-"""
-    with_depower_conversion(f, conv)
-
-Run `f()` with the conversion `conv` (a `(; offset, pivot, slope, curvature, l_dp_min, l_dp_max)`) in force,
-restoring the previous one afterwards, also after an error.
-"""
-function with_depower_conversion(f, conv)
-    old = depower_conversion()
-    DEPOWER_CONVERSION[] = conv
-    try
-        return f()
-    finally
-        DEPOWER_CONVERSION[] = old
-    end
-end
-
-"""
-    awetrim_depower_to_v3kite(l_dp; conv = depower_conversion()) -> Float64
-
-Convert an AWETrim `l_dp` [m] (`input_depower`, `l_dp = 0.6 + 5*u_p`) into the
-V3Kite `rel_depower` expected to fly at the SAME tension: the plain tape geometry
-`(pivot - 0.6)/5` plus the calibrated `offset` at the calibration point `pivot`, and
-`slope*x + curvature*x^2` away from it, `x = l_dp - pivot`. Outside `[l_dp_min, l_dp_max]`,
-the tape lengths it was identified on, it continues along the tangent at the nearer end
-instead of the parabola. At slope 1/5 and no curvature this is the old
-`(l_dp - 0.6)/5 + offset`. The values are identified, see `data/depower_conversion.yaml`.
-"""
-function awetrim_depower_to_v3kite(l_dp; conv = depower_conversion())
-    x_end = clamp(l_dp, conv.l_dp_min, conv.l_dp_max) - conv.pivot
-    tangent = conv.slope + 2 * conv.curvature * x_end
-    return (conv.pivot - 0.6) / 5 + conv.offset + conv.slope * x_end + conv.curvature * x_end^2 +
-           tangent * (l_dp - conv.pivot - x_end)
+function awetrim_depower_to_v3kite(l_dp, tos)
+    f = DEPOWER_CONVERSION[]
+    isnothing(f) && error("No depower conversion installed, call set_depower_conversion! first.")
+    return Float64(f(l_dp)) + tos.seed.depower_offset
 end
 
 "AWETrim's own bounds on `input_depower`, from `src/awetrim/utils/defaults.py` [m]."
@@ -127,11 +88,21 @@ function depower_seed(tos, wind_speed)
 end
 
 """
+    depower_spec(tos) -> Union{DepowerSpec, Nothing}
+
+What every `/init` sends as its `depower`: `DepowerSpec("fixed", tos.seed.depower_fixed)` when
+that is set, which pins the tape length the server solves at, else `nothing`, which leaves it
+optimized from [`depower_seed`](@ref). A `/step` keeps what its session was given.
+"""
+depower_spec(tos) = tos.seed.depower_fixed > 0 ? DepowerSpec("fixed", tos.seed.depower_fixed) : nothing
+
+"""
     request_depower_estimate(tos, wind_speed, cap_wind) -> Float64
 
 The tape length `l_dp` [m] the startup reply is expected to be flown at, which sizes the
 turn-radius request ([`request_constraints`](@ref)). With `tos.seed.request_depower` at 0 it is
-the seed, [`depower_seed`](@ref)`(tos, wind_speed)`, as before 2026-10-05. Otherwise it is
+the seed, [`depower_seed`](@ref)`(tos, wind_speed)`, as before 2026-10-05; with
+`tos.seed.depower_fixed` set it is that pinned length. Otherwise it is
 `request_depower` plus `request_depower_per_wind` per m/s of the wind ALOFT (`cap_wind`, at
 `pattern_elevation_amplitude_max_wind_height`) above `request_depower_wind_ref`, clamped to
 [`DEPOWER_SEED_BOUNDS`](@ref).
@@ -144,6 +115,7 @@ asked for a turn radius no pattern in the box could meet (2026-10-05). Only the 
 moved; the seed the solve starts from is not.
 """
 function request_depower_estimate(tos, wind_speed, cap_wind)
+    tos.seed.depower_fixed > 0 && return tos.seed.depower_fixed
     seed = tos.seed
     seed.request_depower > 0 || return depower_seed(tos, wind_speed)
     l_dp = seed.request_depower +
@@ -246,7 +218,7 @@ function request_constraints(tos, fcs, inflow, cap_wind, l_opt)
     turn_radius_reel = turn_radius_lap_reelout(tos, inflow.wind_speed)
     opt_r_scale = (1 + turn_radius_reel / l_opt) * tos.gates.turn_radius_headroom
     depower_request = awetrim_depower_to_v3kite(request_depower_estimate(tos, inflow.wind_speed,
-                                                                         cap_wind))
+                                                                         cap_wind), tos)
     c1_request = try
         turn_rate_coeffs(fcs.run.body_damping, depower_request).c1
     catch exc

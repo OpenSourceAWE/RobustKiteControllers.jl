@@ -256,13 +256,10 @@ catch exc
 end
 toc("Received the optimized path in: ")
 
-# What the reply was optimized AT, which is not what this run flies. The server
-# varies `l_dp` unless it is pinned (`DepowerSpec("fixed", ...)`), and its tape
-# scale is 0.4 m off V3Kite's: `l_dp = 0.6 + 5*u_p` there, `0.2 + 5*u_p` here. So
-# the gap below is a real difference between the model that predicted the power
-# and the model that flies it, and it belongs next to the prediction.
+# What the reply was optimized AT, which is not what this run flies: the server
+# varies `l_dp` unless it is pinned (`DepowerSpec("fixed", ...)`).
 if !isnothing(opt_result.depower)
-    flown_l_dp = 0.6 + 5 * fcs.course.depower_setpoint
+    flown_l_dp = depower_percentage_to_length(100 * fcs.course.depower_setpoint)
     @info @sprintf("Optimized at depower l_dp = %.3f m (mode %s), against %.3f m \
                     for the flown depower_setpoint = %.2f — a %+.3f m gap on the \
                     optimizer's tape scale.",

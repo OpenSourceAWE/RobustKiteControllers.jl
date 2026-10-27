@@ -73,3 +73,6 @@ function apply_wing_drag!(s, project)
     distribute_wing_drag!(sys, sys.wings[1].vsm_aero.projected_area, kite_set.wing_drag_coeff)
     return nothing
 end
+
+# V3Kite's depower-tape map (calibration.jl), the only one the package converts with.
+RobustKiteControllers.set_depower_conversion!(l_dp -> depower_length_to_percentage(l_dp) / 100)

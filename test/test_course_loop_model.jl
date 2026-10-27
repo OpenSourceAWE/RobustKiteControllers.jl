@@ -117,9 +117,9 @@ using RobustKiteControllers: project_file
         @test τ8 + T8 ≈ τf + Tf
         @test τ8 / T8 ≈ τf / Tf
         # the exponent is the fit through the origin of the depower runs of identify_depower_factor.jl
-        # (2026-10-05, wing drag 0.03): ×0.96 / 1.06 / 1.18 / 1.64 at 0.27 / 0.30 / 0.33 / 0.36,
+        # (2026-10-02, no wing drag): ×0.94 / 1.11 / 1.37 / 1.81 at 0.27 / 0.30 / 0.33 / 0.36,
         # within the rounding of the ratios to two digits
-        runs = ((0.27, 0.96), (0.30, 1.06), (0.33, 1.18), (0.36, 1.64))
+        runs = ((0.27, 0.94), (0.30, 1.11), (0.33, 1.37), (0.36, 1.81))
         fitted = sum((dp - dp0) * log(g) for (dp, g) in runs) / sum((dp - dp0)^2 for (dp, _) in runs)
         @test clm.pattern_depower_exp ≈ fitted rtol=0.01
     end

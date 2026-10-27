@@ -18,12 +18,15 @@ import RobustKiteControllers: GUI_STATE_FILE_OVERRIDE, FAILED_TRAJECTORY_DIR, se
     startup_params, startup_solve, write_run_done, step_commands!, record_step!, check_overspeed,
     OptChain, KiteUtils
 @isdefined(fake_server) || include(joinpath(@__DIR__, "fake_awetrim_server.jl"))
+# V3Kite's depower_length_to_percentage / 100, which the tests cannot load.
+RobustKiteControllers.set_depower_conversion!(l_dp -> (l_dp - 0.2) / 5)
 
 # Not `PROJECT`: the example scripts assign that as a plain global in the same session, and a
 # `const` of that name in `Main` makes their next `include` fail.
 const PIPELINE_PROJECT = "system_reelout_maasvlakte.yaml"
 const UP_LOOPS = FC_Settings(fc_settings(project_file(PIPELINE_PROJECT))).pattern.up_loops
 # Two 100-point figures of eight [deg]: TIGHT misses a 1.3 gate at 150 m (margin 1.24), WIDE clears it.
+# The replies are flown at depower 0.266 (l_dp 1.53 m), where these margins were measured.
 function eight_path(a, b, c)
     r = range(0, 2pi; length = 101)[1:100]
     return prepare_path(a .* sin.(r), c .+ b .* sin.(2 .* r); resample = 100, up_loops = UP_LOOPS)
@@ -48,14 +51,14 @@ function fly_startup(; tos = Dict{Symbol, Any}(), wind = "default", path_for = p
                      fail_warm = false)
     reply(l, p) = Dict("length" => l, "state" => "converged", "step_index" => 1,
         "trajectory" => Dict("azimuth" => path_for(p)[1], "elevation" => path_for(p)[2]),
-        "depower" => Dict("mode" => "optimize", "value" => 1.42),
+        "depower" => Dict("mode" => "optimize", "value" => 1.53),
         "metrics" => Dict("energy_J" => 1e5, "total_time_s" => 100.0, "avg_power_W" => 18000.0,
                           "turn_radius_min_m" => 14.0))
     table(p) = Dict("table" => Dict("azimuth" => deg2rad.(path_for(p)[1]),
                                     "elevation" => deg2rad.(path_for(p)[2]),
                                     "distance_radial" => [150.0, 180.0]),
         "spline" => Dict("downloops" => !UP_LOOPS), "metrics" => Dict("avg_power_W" => 18000.0),
-        "optimized_parameters" => Dict("input_depower" => 1.42))
+        "optimized_parameters" => Dict("input_depower" => 1.53))
     fs = fake_server(; reply, table, fail_warm)
     gui = joinpath(mktempdir(), "gui.yaml")
     write(gui, replace(read(joinpath(rkc_data_path(), "gui.yaml.default"), String),
@@ -68,7 +71,8 @@ function fly_startup(; tos = Dict{Symbol, Any}(), wind = "default", path_for = p
         GUI_STATE_FILE_OVERRIDE[] = gui
         FAILED_TRAJECTORY_DIR[] = traj_dir
         KiteUtils.set_data_path(rkc_data_path())
-        overrides = merge(Dict{Symbol, Any}(:base_url => fs.url,
+        # The gate cases are sized at the plain conversion, not the shipped depower_offset.
+        overrides = merge(Dict{Symbol, Any}(:base_url => fs.url, :depower_offset => 0.0,
                                             :opt_success_cache => false, :opt_failure_cache => false),
                           tos)
         inputs = merge(run_input_defaults(), (; output_path = mktempdir(), tos_overrides = overrides))
@@ -76,7 +80,7 @@ function fly_startup(; tos = Dict{Symbol, Any}(), wind = "default", path_for = p
         st = RunState(; l_set = setup.l_set, opt_r_scale = setup.opt_r_scale,
                       opt_r_min = setup.opt_r_min, depower_flown_opt = setup.fcs.course.depower_setpoint)
         merge_into!(setup, solve_startup_path!(setup, st))
-        log_startup_reply(setup.fcs, st.opt_result, setup.opt_r_min)
+        log_startup_reply(setup.fcs, setup.tos, st.opt_result, setup.opt_r_min)
         log_lobe_lift(setup.fcs, st.opt_result)
         st.c1_startup = setup.c1_at_depower(setup.fcs.course.depower_setpoint)
         adopt_startup_path!(setup, st)
@@ -114,7 +118,7 @@ end
         @test st.opt_paths_raw[1][1] ≈ TIGHT[1] && st.opt_downloops == !UP_LOOPS
         @test isnothing(st.incumbent_score) && isempty(r.saved)
         @test setup.feas.feas_start.margin >= setup.tos.gates.min_feasibility_margin
-        @test st.depower_flown_opt ≈ RobustKiteControllers.awetrim_depower_to_v3kite(1.42)
+        @test st.depower_flown_opt ≈ RobustKiteControllers.awetrim_depower_to_v3kite(1.53, setup.tos)
         # The state the loop starts from.
         @test st.n_path == length(setup.fec.az_path) == length(st.raw_az)
         @test length(st.p5_history) == 1 && st.cc isa CourseController

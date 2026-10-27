@@ -25,7 +25,7 @@ fc_settings:
     # heading_p +8 % for guided α 0.306 and lower RMS d (2026-09-29).
     heading_p:          0.183805 # Gain at v_app_ref                                  [-]
     heading_i:          false    # Integral time [s], or false for no integral action
-    heading_d:          0.146    # Derivative time; raised for the guided disk margin (2026-09-28, 2026-09-29, 2026-10-05) [s]
+    heading_d:          0.141    # Derivative time; raised for the guided disk margin (2026-09-28, 2026-09-29) [s]
     heading_d_n:        2.0      # Derivative filter, max gain of the D path          [-]
     v_app_ref:          27.0     # Speed flown in phase 3; anchors the gain schedule [m/s]
     v_app_min:          10.0     # Lower clamp on v_app, limits the gain boost      [m/s]
@@ -80,6 +80,7 @@ fc_settings:
     # factor and kite correction re-identified with the wing drag the kite responds faster at high v_a;
     # guided disk margin of Cabauw 9-10 m/s 0.672/0.677 -> 0.611/0.617, worst 0.506 (Maasvlakte 3.5 m/s,
     # set by the arc's floor) unchanged.
+    # 2026-10-25: wing drag back to 0, heading_d back to 0.141; lead 1.05 as before the drag.
     attractor_lead_time: 1.05    # Lead as flight time, arc = t*v_app/L; 0 = off   [s]
     reacquire_margin:    6.0     # Global best must beat the in-window best by this  [deg]
     up_loops:           false    # Up-loops instead of down-loops; down crosses the centre

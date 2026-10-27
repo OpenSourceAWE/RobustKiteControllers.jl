@@ -59,8 +59,8 @@ REST client ([`src/awetrim_client.jl`](https://github.com/OpenSourceAWE/RobustKi
   size box.
 
 The server maps the soft winch law of step 4 onto its own radial force model, so the optimized
-path already assumes that law. The depower it is given comes from the identified depower
-conversion (`data/depower_conversion.yaml`). See
+path already assumes that law. Its depower, a power-tape length, is converted to V3Kite's `rel_depower` with V3Kite's own
+tape map (`depower_length_to_percentage`). See
 [TrajectoryOptimization.md](https://github.com/OpenSourceAWE/RobustKiteControllers.jl/blob/main/docs/TrajectoryOptimization.md) for the interface. The path following
 below does not care where the points came from: it can fly any closed (azimuth, elevation)
 curve.

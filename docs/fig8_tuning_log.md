@@ -6372,3 +6372,86 @@ max d 4.9-5.0° unchanged):
 Worse: Maasvlakte 8 m/s (+7 %), 8.5 (+11 %), 9 (+12 %). Open: the 0.5-1.5° of sag left at
 Cabauw 8-10 m/s is not gravity; `el_offset_final` and the low-wind schedule's lift were not
 re-tuned; Maasvlakte could get its own lobe lift (the two sites share this file).
+
+## 2026-10-25 — Wing drag back to 0: every identified value back to 2026-10-02
+
+`wing_drag_coeff` 0.03 -> 0.0 in `kite_settings_psm.yaml` and `kite_settings_psm_kernel.yaml`,
+and everything identified on the kite with drag (2026-10-05/06) back to the last
+identification without it (2026-10-02, commit ce552c3): `turn_rate_coeffs.yaml`,
+`course_loop_model.yaml`, `kite_correction_measured.csv`, `depower_conversion.yaml`, and `heading_d` 0.146 -> 0.141 in `fc_settings_reelout.yaml`
+(`attractor_lead_time` was already back at 1.05). The provenance is backfilled with the
+drag-free `kite_id` 867207c8156c; no other value of the kite fingerprint changed since.
+
+Not reverted: the 0.40 depower cell and the larger relay amplitudes of the turn-rate table
+(9bb6d79) exist only for the kite with drag, so the table ends at 0.375 again.
+`course_link_measured.csv` is re-measured without drag (`measure_course_link.jl`, 300 / 200 /
+150 m, command never on its clamp) instead of reverted: the 2026-10-01 file's 150 m point was
+the enlarged test pattern only. The model is no longer conservative at 200 m:
+
+| tether | v_a | delay margin measured / model | gain margin measured / model |
+|--:|--:|--|--|
+| 300 m | 33.1 | 0.214 / 0.186 s (−13 %) | 4.48 / 2.10 |
+| 200 m | 34.5 | 0.121 / 0.144 s (**+19 %**) | 4.05 / 2.04 |
+| 150 m | 34.9 | 0.280 / 0.154 s (−45 %) | 2.58 / 2.09 |
+
+With the drag all three were conservative (0.305/0.439/0.383 s measured against
+0.287/0.223/0.238 s). The 200 m plant reproduces the 2026-10-01 measurement without drag
+(|G| 1.95-1.97 at 0.63-0.65 Hz, phase −158°), so this is the drag-free kite, not noise; the
+check only exists since 2026-10-06. The model lacks the gain bump at 0.6-0.7 Hz there; its
+kite correction is measured at 300 m only.
+
+The high-wind box of `traj_opt.yaml` (1290d50, b68455e: ±34° azimuth, 13°
+elevation half-span) and `request_depower_estimate` were sized for the drag and are kept.
+The scenarios in `output/scenarios/` were flown with the drag.
+
+## 2026-10-26 — One linear depower conversion: V3Kite's tape map
+
+`awetrim_depower_to_v3kite` now converts AWETrim's power-tape length with V3Kite's own map
+(`calibration.jl`, `depower_length_to_percentage`), `rel_depower = (l_dp - 0.2)/5`, installed by
+`examples/model_setup.jl` through `set_depower_conversion!` since `src/` does not depend on V3Kite.
+Removed: the identified quadratic of `data/depower_conversion.yaml` (offset 0.1010 at pivot
+1.43 m, slope 0.1147, curvature 0.1905) and `examples/identify_depower_conversion.jl`, and
+`simple_opt_fig8.jl`'s `l_dp = 0.6 + 5*u_p` for the flown setpoint. At the pivot the new map
+flies 0.246 instead of 0.267, i.e. 0.021 more powered, and 0.027 at 1.94 m
+(0.348 against 0.375).
+
+Flown the same day with the new AWETrim (`bin/install_awetrim`, both optimizer caches
+cleared), 150 m reel-out, against the scenarios of 2026-10-06 (old AWETrim, quadratic map):
+
+| run | `l_dp` [m] | `rel_depower` | mean force [N] | predicted / measured [W] | ratio |
+|--|--|--|--|--|--|
+| Maasvlakte 7, reference | 1.42-1.44 | 0.272-0.274 | 4435 | 11772 / 11886 | 1.01 |
+| Maasvlakte 7 | 1.628 | 0.286 | 3666 | 12372 / 8907 | 0.72 |
+| Maasvlakte 7, `depower_fixed` 1.43 | 1.43 | 0.246 | 4951 | 23501 / 14132 | 0.60 |
+| Cabauw 10, reference | 1.908 | 0.396 | 6690 | 22455 / 22544 | 1.00 |
+| Cabauw 10 | 2.078 | 0.376 | 5928 | 22828 / 18860 | 0.83 |
+
+All five pass all 10 criteria. The new AWETrim is the larger change: it lets out about
+0.2 m more tape than the old one, and at the old tape length it predicts twice the power
+(23.5 against 11.8 kW). At the same tape length the linear map flies 0.246 where the reference flew 0.274,
+worth 14.1 against 11.9 kW measured. `depower_fixed` (`traj_opt.yaml`, `seed:`) pins the tape length
+of every `/init`; it was added for the pinned run. Cabauw 10's 0.376 is just past the turn-rate
+table's 0.375 end.
+
+`build_all_scenarios.jl` then re-flew all 22 scenarios with the new AWETrim: 21 passed on the
+first build. Maasvlakte 5 m/s (6.4 m/s at 100 m, the low-wind schedule's last row: 150 m,
+guess at 29°) failed its startup solve at 29, 28 and 31°, and converges from 27°, so
+`startup_retry_el_offsets` [-1, 2] -> [-1, 2, -2]: it flew from 27°, all 10 criteria, 3102 W
+measured, ratio 0.77.
+
+## 2026-10-26 — `depower_offset`: power ratio back to ~1.0
+
+With V3Kite's linear tape map and the new AWETrim the Maasvlakte scenarios flew a mean
+`power_ratio` of 0.75 (0.70-0.88 over 3.5-11 m/s), at about 0.286 depower up to 8.5 m/s.
+`traj_opt.yaml` `seed.depower_offset` is now added to every converted reply
+(`awetrim_depower_to_v3kite(l_dp, tos)`). Maasvlakte, 150 m reel-out, all 10 criteria passed in every run:
+
+| offset | 4 m/s | 7 m/s | 10 m/s | mean |
+|--|--|--|--|--|
+| 0 (scenarios) | 0.78 | 0.72 | 0.74 | 0.75 |
+| -0.013 | 0.97 | 0.88 | 0.91 | 0.92 |
+| -0.018 | 1.04 | 0.94 | 0.98 | 0.99 |
+
+The -0.013 step gives d ln P / d rel_depower ~ -16. At -0.018: depower 0.268/0.268/0.287,
+measured 1962/11692/23126 W. The peak phase-4 force at 10 m/s rose from 7228 to 7735 N,
+above the 7200 N `f_high`; the other wind speeds were not re-flown.
