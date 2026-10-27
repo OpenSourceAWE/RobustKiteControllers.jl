@@ -45,6 +45,9 @@ using Printf
 import Dates
 include(joinpath(@__DIR__, "winch_adapter.jl"))  # winch_torque!: V3Kite is torque-only
 
+@info "validate_lift_drag.jl: lift and drag of the parked V3Kite vs. AWETrim's ROM at the \
+       same power tape and apparent wind speed, saved for show_validation.jl."
+
 "Where the results are saved"
 const RESULT_FILE = normpath(joinpath(@__DIR__, "..", "output", "lift_drag_validation.json"))
 "The ROMs queried: label => `rom_config_path` (`nothing` = the system file's default)"
