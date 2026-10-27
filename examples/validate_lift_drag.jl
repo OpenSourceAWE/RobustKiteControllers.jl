@@ -71,13 +71,14 @@ Fail before flying when the AWETrim server at `url` does not answer or has no
 """
 function check_aero_forces_endpoint(url)
     spec = try
-        String(HTTP.get(url * "/openapi.json"; readtimeout = 5).body)
+        String(HTTP.get(url * "/openapi.json"; request_timeout = 5).body)
     catch err
         error("No AWETrim server at $url ($(typeof(err))); start it with bin/run_server start.")
     end
     occursin("/aero_forces", spec) ||
-        error("The AWETrim server at $url has no /aero_forces: check out an AWETrim with it \
-               and restart the server (bin/run_server restart).")
+        error("The AWETrim server at $url has no /aero_forces: check out AWETrim's branch \
+               feat/server-aero-forces (until it is merged) and restart the server \
+               (bin/run_server restart).")
     nothing
 end
 
