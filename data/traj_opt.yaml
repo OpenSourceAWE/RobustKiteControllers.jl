@@ -36,7 +36,7 @@ traj_opt:
     # Added to every reply's converted rel_depower, to bring the mean power_ratio to ~1.0.
     # Maasvlakte 2026-10-26: mean power_ratio 0.75 at 0; at -0.013 4/7/10 m/s flew
     # 0.97/0.88/0.91, i.e. d ln P / d rel_depower ~ -16, so -0.018 (docs/fig8_tuning_log.md).
-    depower_offset:         -0.018 # [-]
+    depower_offset:          0.0   # [-]
 
   box:  # pattern box the optimizer solves UNDER; 0.0 keeps the server default (|az| <= 45.8, 0.6 <= el <= 51.6)
     pattern_azimuth_max: 28.0        # closes the wide basin seen at 5.5 m/s; good runs fly ±18-25 [deg]
