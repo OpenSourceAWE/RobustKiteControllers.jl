@@ -11,15 +11,18 @@ winch length loop) and flies one block per point of `points`, `(tape, v_a)` with
 power-tape length in m and the target apparent wind speed in m/s. In each block the
 ground wind is first trimmed for `t_trim` seconds until `v_a` reaches the target (rate
 limited, so the kite stays parked), then held for `t_avg` seconds, over which lift, wing
-drag, tether + bridle + KCU drag, `span_mean_aoa` and `v_a` are averaged. Lift and drag
-are V3Kite's `lift_drag`: the wing's force perpendicular to and along its apparent wind.
+drag, `span_mean_aoa` and `v_a` are averaged. Lift is V3Kite's `lift_drag`: the wing's
+force perpendicular to its apparent wind. Drag is put on AWETrim's basis, the VSM wing drag
+plus the drag of ALL bridle lines (`drag_parts`); `lift_drag`'s own drag, which
+holds only the bridle drag lumped onto the wing nodes, and the tether and KCU drag are
+saved next to it.
 
 AWETrim side: `POST /aero_forces` of the AWETrim server at `url` (needs AWETrim with that
 endpoint; restart the server after switching branch), at the MEASURED mean `v_a` of each
 block, for each ROM of `ROMS`, once at the ROM's own gravity-free trim and once at
 V3Kite's angle of attack. The two angles are not defined identically (V3Kite: span mean
 of the VSM panels' geometric angle; ROM: the wing angle of its identification), so both
-are kept. AWETrim's wing drag includes the bridle lines; V3Kite has them in the tether drag.
+are kept.
 
 `fly = false` re-queries AWETrim for the V3Kite results already saved, without flying:
 
@@ -40,6 +43,8 @@ using V3Kite: init, step!
 using DiscretePIDs: set_K!
 using HTTP, JSON3
 using OrderedCollections: OrderedDict
+using LinearAlgebra: dot, norm, normalize
+import SymbolicAWEModels
 using Statistics
 using Printf
 import Dates
@@ -86,10 +91,53 @@ function check_aero_forces_endpoint(url)
 end
 
 """
+    drag_parts(s) -> NamedTuple
+
+Drag [N] along the wing's apparent wind, split as AWETrim needs it: `vsm` (the VSM wing),
+`bridle` (all bridle lines), `bridle_in_wing` (the part of it `lift_drag` counts as wing
+drag: SymbolicAWEModels lumps half of each segment's drag onto each end point, and
+`lift_drag` adds the wing nodes' share), `tether` and `kcu` (the points with an area).
+Segment drag is recomputed with SymbolicAWEModels' law at the mean wind and velocity of
+the two end points, so it matches the model to about 2 %.
+"""
+function drag_parts(s)
+    sys = s.sys
+    wing = sys.wings[1]
+    va_b = wing.va_b
+    va_hat = V3Kite.calc_R_b_w(sys) * (va_b / norm(va_b))
+    tether_segs = Set(Iterators.flatten(t.segment_idxs for t in sys.tethers))
+    bridle = bridle_in_wing = tether = 0.0
+    for seg in sys.segments
+        a, b = sys.points[seg.point_idxs[1]], sys.points[seg.point_idxs[2]]
+        a.is_wing_node && b.is_wing_node && continue  # wing frame: no line drag
+        u = normalize(b.pos_w - a.pos_w)
+        va = 0.5 * (a.wind_vec + b.wind_vec - a.vel_w - b.vel_w)
+        rho = SymbolicAWEModels.air_density(s.sam.am, 0.5 * (a.pos_w[3] + b.pos_w[3]))
+        f = 0.5 * rho * s.set.cd_tether * norm(va) * seg.len * seg.diameter *
+            (va - dot(va, u) * u)
+        d = dot(f, va_hat)
+        if seg.idx in tether_segs
+            tether += d
+        else
+            bridle += d
+            bridle_in_wing += 0.5 * d * (a.is_wing_node + b.is_wing_node)
+        end
+    end
+    kcu = sum(sys.points) do p
+        p.area > 0 || return 0.0
+        rho = SymbolicAWEModels.air_density(s.sam.am, p.pos_w[3])
+        dot(SymbolicAWEModels.point_drag_force(p.wind_vec - p.vel_w, rho, p.drag_coeff, p.area),
+            va_hat)
+    end
+    return (; vsm = dot(wing.aero_force_b, va_b / norm(va_b)), bridle, bridle_in_wing, tether, kcu)
+end
+
+"""
     fly_points(points; t_trim, t_avg) -> Vector{OrderedDict}
 
 Fly one parked block per `(tape, v_a)` point in a single V3Kite run and return the
-block means (forces in N, angles in degrees).
+block means (forces in N, angles in degrees). `drag` is on AWETrim's basis (VSM wing +
+all bridle lines), `drag_lift_drag` is V3Kite's `lift_drag` drag.
 """
 function fly_points(points; t_trim, t_avg)
     s = init(PARK.v_wind, PARK.tether_length; body_start_damping = PARK.body_damping,
@@ -108,8 +156,9 @@ function fly_points(points; t_trim, t_avg)
     results = OrderedDict{String, Any}[]
     for (tape, v_target) in points
         rel_depower = depower_length_to_percentage(tape) / 100
-        acc = Dict(k => Float64[] for k in (:v_app, :lift, :drag, :tether_drag, :aoa,
-                                            :elevation, :force, :v_wind))
+        acc = Dict(k => Float64[] for k in (:v_app, :lift, :drag, :drag_lift_drag, :drag_vsm,
+                                            :drag_bridle, :drag_bridle_in_wing, :drag_tether,
+                                            :drag_kcu, :aoa, :elevation, :force, :v_wind))
         for i in 1:(n_trim + n_avg)
             v_app = s.sys_state.v_app
             v_app_f += s.dt / WIND_TRIM.tau * (v_app - v_app_f)
@@ -124,10 +173,14 @@ function fly_points(points; t_trim, t_avg)
                   set_torque = winch_torque!(wpc, s, l0))
             i <= n_trim && continue
             lift, drag = lift_drag(s)
+            parts = drag_parts(s)
             push!(acc[:v_app], s.sys_state.v_app)
             push!(acc[:lift], lift)
-            push!(acc[:drag], drag)
-            push!(acc[:tether_drag], total_drag(s)[2])
+            push!(acc[:drag], parts.vsm + parts.bridle)
+            push!(acc[:drag_lift_drag], drag)
+            for (k, v) in pairs(parts)
+                push!(acc[Symbol(:drag_, k)], v)
+            end
             push!(acc[:aoa], rad2deg(span_mean_aoa(s.sys)))
             push!(acc[:elevation], rad2deg(s.sys_state.elevation))
             push!(acc[:force], winch_force(s))
@@ -140,8 +193,9 @@ function fly_points(points; t_trim, t_avg)
         end
         res["lift_std"] = std(acc[:lift])
         res["v_app_std"] = std(acc[:v_app])
-        @printf("V3Kite  tape %.2f m  v_a %5.2f m/s (target %5.2f)  L %6.0f N  D %5.0f N  AoA %5.2f°  wind %5.2f m/s\n",
-                tape, res["v_app"], v_target, res["lift"], res["drag"], res["aoa"], res["v_wind"])
+        @printf("V3Kite  tape %.2f m  v_a %5.2f m/s (target %5.2f)  L %6.0f N  D %5.0f N (lift_drag %5.0f N)  AoA %5.2f°  wind %5.2f m/s\n",
+                tape, res["v_app"], v_target, res["lift"], res["drag"], res["drag_lift_drag"],
+                res["aoa"], res["v_wind"])
         push!(results, res)
     end
     return results

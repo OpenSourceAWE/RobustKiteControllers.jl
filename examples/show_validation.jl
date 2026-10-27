@@ -96,6 +96,29 @@ function rom_table(io, label, v3kite, awetrim)
 end
 
 """
+    drag_table(io, v3kite)
+
+The V3Kite drag split per block, along the wing's apparent wind; skipped for results
+saved before the split was recorded.
+"""
+function drag_table(io, v3kite)
+    all(res -> haskey(res, "drag_vsm"), v3kite) || return
+    println(io, """<h2>V3Kite drag split</h2><div class="wrap"><table><thead><tr>
+      <th>tape [m]</th><th>v<sub>a</sub> [m/s]</th><th class="grp">VSM wing [N]</th>
+      <th>bridle lines [N]</th><th>compared D [N]</th><th class="grp">bridle in <code>lift_drag</code> [N]</th>
+      <th><code>lift_drag</code> D [N]</th><th class="grp">tether [N]</th><th>KCU [N]</th>
+      </tr></thead><tbody>""")
+    for res in v3kite
+        println(io, "<tr><td>$(num(res["tape"], 2))</td><td>$(num(res["v_app"], 1))</td>",
+                "<td class=\"grp\">$(num(res["drag_vsm"]))</td><td>$(num(res["drag_bridle"]))</td>",
+                "<td>$(num(res["drag"]))</td>",
+                "<td class=\"grp\">$(num(res["drag_bridle_in_wing"]))</td><td>$(num(res["drag_lift_drag"]))</td>",
+                "<td class=\"grp\">$(num(res["drag_tether"]))</td><td>$(num(res["drag_kcu"]))</td></tr>")
+    end
+    println(io, "</tbody></table></div>")
+end
+
+"""
     write_validation_html(data, file)
 
 Write the page for the parsed `lift_drag_validation.json` `data` to `file`.
@@ -115,9 +138,12 @@ function write_validation_html(data, file)
         for label in data["roms"]
             rom_table(io, label, data["v3kite"], data["awetrim"])
         end
+        drag_table(io, data["v3kite"])
         println(io, """<ul>
-          <li>V3Kite L / D: <code>lift_drag</code>, the wing's force perpendicular to and along
-              its apparent wind; tether, bridle and KCU drag are not in D.</li>
+          <li>V3Kite L: <code>lift_drag</code>, the wing's force perpendicular to its apparent
+              wind. V3Kite D: the VSM wing drag plus the drag of all bridle lines, AWETrim's
+              basis; <code>lift_drag</code>'s own D holds only the bridle share lumped onto the
+              wing nodes.</li>
           <li>AWETrim L / D: the ROM wing (bridle lines included in D, KCU not), at the
               measured mean v<sub>a</sub> of the V3Kite block.</li>
           <li>ROM trim: the ROM's own gravity-free angle of attack. ΔL, ΔD: AWETrim at
