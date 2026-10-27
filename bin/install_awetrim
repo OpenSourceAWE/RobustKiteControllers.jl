@@ -2,8 +2,10 @@
 # Copyright (c) 2026 Uwe Fechner
 # SPDX-License-Identifier: MIT
 #
-# bash script to install the develop branch of https://github.com/awegroup/AWETrim
-# in the folder ../AWETrim
+# bash script to install the feat/server-aero-forces branch of
+# https://github.com/awegroup/AWETrim in the folder ../AWETrim. That branch is
+# develop plus the POST /aero_forces endpoint examples/validate_lift_drag.jl
+# needs; switch BRANCH back to develop once it is merged.
 #
 # AWETrim is a Python project, so it gets its own venv with the dev and server
 # extras installed in editable mode; bin/run_server (here and in AWETrim) expects
@@ -14,7 +16,9 @@
 #
 # Re-running the script is safe: an existing checkout is fetched and fast-forwarded
 # rather than re-cloned, and the venv is only created if it is missing. A checkout
-# with local modifications is left alone apart from the dependency install.
+# with local modifications is left alone apart from the dependency install. A
+# branch that exists only in the local checkout (not pushed yet) is checked out
+# as it is.
 #
 # At the end the optimizer's two caches in output/ are cleared (the failed-request
 # cache opt_failure_cache.yaml and the solution cache opt_chain_cache/): their keys
@@ -24,7 +28,7 @@
 set -euo pipefail
 
 REPO_URL="https://github.com/awegroup/AWETrim"
-BRANCH="develop"
+BRANCH="feat/server-aero-forces"
 TARGET="../AWETrim"
 
 if [[ $(basename "$(pwd)") == "bin" ]]; then
@@ -49,12 +53,23 @@ fi
 # --- clone or update ----------------------------------------------------------
 if [[ -d $TARGET/.git ]]; then
     echo "Found an existing checkout in $(cd "$TARGET" && pwd), updating it ..."
-    git -C "$TARGET" fetch origin "$BRANCH"
+    on_origin=false
+    if git -C "$TARGET" ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+        on_origin=true
+        git -C "$TARGET" fetch origin "$BRANCH"
+    elif ! git -C "$TARGET" rev-parse --verify --quiet "refs/heads/$BRANCH" >/dev/null; then
+        echo "ERROR: branch $BRANCH is neither on origin nor in the local checkout." >&2
+        exit 1
+    fi
     if [[ -n $(git -C "$TARGET" status --porcelain) ]]; then
         echo "WARNING: the checkout has local modifications, skipping the branch update." >&2
     else
         git -C "$TARGET" checkout "$BRANCH"
-        git -C "$TARGET" merge --ff-only "origin/$BRANCH"
+        if $on_origin; then
+            git -C "$TARGET" merge --ff-only "origin/$BRANCH"
+        else
+            echo "Branch $BRANCH is not on origin; using the local branch as it is."
+        fi
     fi
 elif [[ -e $TARGET ]]; then
     echo "ERROR: $TARGET exists but is not a git repository." >&2
@@ -89,4 +104,5 @@ echo "Clearing the optimizer caches in $RKC_ROOT/output ..."
 rm -f "$RKC_ROOT/output/opt_failure_cache.yaml"
 rm -rf "$RKC_ROOT/output/opt_chain_cache"
 
-echo "Done. Start the AWETrim server with bin/run_server"
+echo "Done. Start the AWETrim server with bin/run_server start;"
+echo "a server that is already running keeps the old code until bin/run_server restart."
