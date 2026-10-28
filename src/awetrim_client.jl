@@ -53,6 +53,13 @@
 const RKC_ROOT = normpath(joinpath(@__DIR__, ".."))
 "Default server address; every function below takes `url` to override it."
 const AWETRIM_URL = "http://127.0.0.1:8000"
+"""
+The AWETrim ROM every request flies against, as `rom_config_path` of `/init` and
+`/aero_forces`: a file name resolved by the server next to its system file
+(`data/LEI-V3-KITE/` of the AWETrim checkout). [`opt_init`](@ref) refuses a reply
+that names another file.
+"""
+const AWETRIM_ROM = "rom_config_aerostructural2.yaml"
 
 # ---------------------------------------------------------------------------
 # The shared structs (as agreed)
@@ -120,6 +127,7 @@ Base.@kwdef struct InitParams
     depower::Union{DepowerSpec, Nothing} = nothing
     min_turn_radius::Union{Float64, Nothing} = nothing   # [m], 0/nothing = off
     pattern_limits::Union{PatternLimits, Nothing} = nothing
+    rom_config_path::String = AWETRIM_ROM
 end
 
 Base.@kwdef struct StepParams
@@ -171,6 +179,7 @@ struct InitReply
     pattern_limits::Union{PatternLimits, Nothing}
     state::String
     n_points::Union{Int, Nothing}
+    rom_config::Union{String, Nothing}
 end
 
 """
@@ -574,7 +583,7 @@ function as_init_reply(reply)
                      as_depower(opt_get(reply, "depower")),
                      opt_float(reply, "min_turn_radius"),
                      as_pattern_limits(opt_get(reply, "pattern_limits")),
-                     reply["state"], opt_get(reply, "n_points"))
+                     reply["state"], opt_get(reply, "n_points"), opt_get(reply, "rom_config"))
 end
 
 function as_step_reply(reply)
@@ -602,10 +611,26 @@ optimization happens yet — that is [`opt_step`](@ref).
 
 The reply also states what the coming solves will run under: `depower.mode`,
 `min_turn_radius` and `pattern_limits`, each `nothing` where the server's own
-default applies.
+default applies, and the ROM it built the session on, which [`check_rom`](@ref)
+compares with `params.rom_config_path` ([`AWETRIM_ROM`](@ref) unless set).
 """
 function opt_init(params::InitParams; url = AWETRIM_URL)
-    return as_init_reply(JSON3.read(post("/init", params; url), Dict{String,Any}))
+    reply = as_init_reply(JSON3.read(post("/init", params; url), Dict{String,Any}))
+    check_rom(reply, params)
+    return reply
+end
+
+"""
+    check_rom(reply::InitReply, params::InitParams)
+
+Throw unless the server built the session on the ROM `params` asked for: `reply.rom_config`
+must name the file `params.rom_config_path` names.
+"""
+function check_rom(reply::InitReply, params::InitParams)
+    used = something(reply.rom_config, "(not reported)")
+    basename(used) == basename(params.rom_config_path) ||
+        error("AWETrim built the session on $used, not on $(params.rom_config_path).")
+    return nothing
 end
 
 """

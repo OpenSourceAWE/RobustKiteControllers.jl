@@ -19,8 +19,8 @@ saved next to it.
 
 AWETrim side: `POST /aero_forces` of the AWETrim server at `url` (needs AWETrim with that
 endpoint; restart the server after switching branch), at the MEASURED mean `v_a` of each
-block, for each ROM of `ROMS`, once at the ROM's own gravity-free trim and once at
-V3Kite's angle of attack. The two angles are not defined identically (V3Kite: span mean
+block, for the ROM `AWETRIM_ROM` (`src/awetrim_client.jl`), once at the ROM's own
+gravity-free trim and once at V3Kite's angle of attack. The two angles are not defined identically (V3Kite: span mean
 of the VSM panels' geometric angle; ROM: the wing angle of its identification), so both
 are kept.
 
@@ -37,7 +37,8 @@ if Base.active_project() != joinpath(@__DIR__, "Project.toml")
 end
 
 using RobustKiteControllers
-using RobustKiteControllers: run_example, script_inputs, package_git_state, AWETRIM_URL
+using RobustKiteControllers: run_example, script_inputs, package_git_state, AWETRIM_URL,
+                             AWETRIM_ROM
 using V3Kite
 using V3Kite: init, step!
 using DiscretePIDs: set_K!
@@ -55,8 +56,8 @@ include(joinpath(@__DIR__, "winch_adapter.jl"))  # winch_torque!: V3Kite is torq
 
 "Where the results are saved"
 const RESULT_FILE = normpath(joinpath(@__DIR__, "..", "output", "lift_drag_validation.json"))
-"The ROMs queried: label => `rom_config_path` (`nothing` = the system file's default)"
-const ROMS = ["flight_corrected" => nothing, "aerostructural" => "rom_config_aerostructural.yaml"]
+"The ROMs queried: label => `rom_config_path`; only the one every optimizer request uses"
+const ROMS = [splitext(AWETRIM_ROM)[1] => AWETRIM_ROM]
 "The parked setup of `simple_auto_parking.jl`, so its settled state is reused"
 const PARK = (project = "system_reelout.yaml", v_wind = 9.51, tether_length = 150.0,
               depower = 0.25, dt = 0.05 / 3, body_damping = [0.0, 0.0, 40.0],
