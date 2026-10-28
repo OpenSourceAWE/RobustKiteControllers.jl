@@ -5,9 +5,8 @@
 Show the lift/drag comparison saved by `validate_lift_drag.jl`
 (`output/lift_drag_validation.json`) as an HTML page in the default browser: one table
 per AWETrim ROM, each row a V3Kite block (power tape, measured apparent wind speed),
-with V3Kite's lift and drag next to the ROM's at its own trim and at V3Kite's angle of
-attack, and the deviation of the latter from V3Kite in percent. Rows outside the ROM's
-validity band are marked.
+with V3Kite's lift and drag next to the ROM's at its own trim, and the deviation of the
+ROM from V3Kite in percent. Rows outside the ROM's validity band are marked.
 
     include("examples/show_validation.jl")
 """
@@ -71,25 +70,23 @@ function rom_table(io, label, v3kite, awetrim)
     println(io, "<h2>ROM: $(esc(label)) <span class=\"meta\">$(esc(rom_file))</span></h2>")
     println(io, """<div class="wrap"><table><thead>
       <tr><th colspan="2"></th><th colspan="2" class="grp">V3Kite</th>
-          <th colspan="2" class="grp">AWETrim, ROM trim</th>
-          <th colspan="3" class="grp">AWETrim at V3Kite AoA</th><th class="grp"></th></tr>
+          <th colspan="4" class="grp">AWETrim, ROM trim</th><th class="grp"></th></tr>
       <tr><th>tape [m]</th><th>v<sub>a</sub> [m/s]</th>
           <th class="grp">AoA [°]</th><th>L / D [N]</th>
-          <th class="grp">AoA [°]</th><th>L / D [N]</th>
-          <th class="grp">L / D [N]</th><th>ΔL</th><th>ΔD</th><th class="grp">in ROM band</th></tr>
+          <th class="grp">AoA [°]</th><th>L / D [N]</th><th>ΔL</th><th>ΔD</th>
+          <th class="grp">in ROM band</th></tr>
       </thead><tbody>""")
     for (res, aw) in zip(v3kite, awetrim)
-        trim, at = aw[label]["trim"], aw[label]["v3kite_aoa"]
-        valid = get(at, "within_validity", nothing)
-        band = get(at, "input_depower_validity", nothing)
+        trim = aw[label]["trim"]
+        valid = get(trim, "within_validity", nothing)
+        band = get(trim, "input_depower_validity", nothing)
         valid_cell = valid === nothing ? "–" : valid ? "yes" :
             "<span class=\"out\" title=\"tape band $(esc(band))\">no</span>"
         println(io, "<tr><td>$(num(res["tape"], 2))</td><td>$(num(res["v_app"], 1))</td>",
                 "<td class=\"grp\">$(num(res["aoa"], 2))</td><td>$(num(res["lift"])) / $(num(res["drag"]))</td>",
                 "<td class=\"grp\">$(num(get(trim, "angle_of_attack", nothing), 2))</td><td>$(ld(trim))</td>",
-                "<td class=\"grp\">$(ld(at))</td>",
-                "<td>$(deviation(get(at, "lift", nothing), res["lift"]))</td>",
-                "<td>$(deviation(get(at, "drag", nothing), res["drag"]))</td>",
+                "<td>$(deviation(get(trim, "lift", nothing), res["lift"]))</td>",
+                "<td>$(deviation(get(trim, "drag", nothing), res["drag"]))</td>",
                 "<td class=\"grp\">$valid_cell</td></tr>")
     end
     println(io, "</tbody></table></div>")
@@ -146,8 +143,8 @@ function write_validation_html(data, file)
               wing nodes.</li>
           <li>AWETrim L / D: the ROM wing (bridle lines included in D, KCU not), at the
               measured mean v<sub>a</sub> of the V3Kite block.</li>
-          <li>ROM trim: the ROM's own gravity-free angle of attack. ΔL, ΔD: AWETrim at
-              V3Kite's span-mean angle of attack, relative to V3Kite.</li>
+          <li>ROM trim: the ROM's own gravity-free angle of attack. ΔL, ΔD: AWETrim relative
+              to V3Kite.</li>
         </ul></body></html>""")
     end
     return file

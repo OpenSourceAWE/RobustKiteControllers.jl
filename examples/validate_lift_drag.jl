@@ -19,10 +19,8 @@ saved next to it.
 
 AWETrim side: `POST /aero_forces` of the AWETrim server at `url` (needs AWETrim with that
 endpoint; restart the server after switching branch), at the MEASURED mean `v_a` of each
-block, for the ROM `AWETRIM_ROM` (`src/awetrim_client.jl`), once at the ROM's own
-gravity-free trim and once at V3Kite's angle of attack. The two angles are not defined identically (V3Kite: span mean
-of the VSM panels' geometric angle; ROM: the wing angle of its identification), so both
-are kept.
+block, for the ROM `AWETRIM_ROM` (`src/awetrim_client.jl`), at the ROM's own
+gravity-free trim.
 
 `fly = false` re-queries AWETrim for the V3Kite results already saved, without flying:
 
@@ -203,14 +201,13 @@ function fly_points(points; t_trim, t_avg)
 end
 
 """
-    aero_forces(url, tape, v_app; alpha = nothing, rom = nothing) -> Dict
+    aero_forces(url, tape, v_app; rom = nothing) -> Dict
 
-One `POST /aero_forces`; `alpha` in degrees (`nothing` = the ROM's trim). A request
-the server rejects returns `Dict("error" => detail)` instead of throwing.
+One `POST /aero_forces` at the ROM's trim. A request the server rejects returns
+`Dict("error" => detail)` instead of throwing.
 """
-function aero_forces(url, tape, v_app; alpha = nothing, rom = nothing)
+function aero_forces(url, tape, v_app; rom = nothing)
     req = Dict{String, Any}("input_depower" => tape, "speed_apparent_wind" => v_app)
-    isnothing(alpha) || (req["angle_of_attack"] = alpha)
     isnothing(rom) || (req["rom_config_path"] = rom)
     try
         resp = HTTP.post(url * "/aero_forces", ["Content-Type" => "application/json"];
@@ -226,13 +223,12 @@ end
     query_awetrim(v3kite, url) -> Vector{OrderedDict}
 
 For each V3Kite block: the ROM forces at its tape and mean `v_a`, per ROM of `ROMS`,
-at the ROM's trim (`trim`) and at V3Kite's angle of attack (`v3kite_aoa`).
+at the ROM's trim (`trim`).
 """
 function query_awetrim(v3kite, url)
     map(v3kite) do res
         OrderedDict{String, Any}(label => OrderedDict{String, Any}(
-            "trim" => aero_forces(url, res["tape"], res["v_app"]; rom),
-            "v3kite_aoa" => aero_forces(url, res["tape"], res["v_app"]; rom, alpha = res["aoa"]))
+            "trim" => aero_forces(url, res["tape"], res["v_app"]; rom))
             for (label, rom) in ROMS)
     end
 end
@@ -250,10 +246,10 @@ end
 awetrim = query_awetrim(v3kite, url)
 
 for (res, aw) in zip(v3kite, awetrim), (label, _) in ROMS
-    trim, at_aoa = aw[label]["trim"], aw[label]["v3kite_aoa"]
+    trim = aw[label]["trim"]
     fmt(r) = haskey(r, "error") ? "      error" : @sprintf("%5.0f / %4.0f", r["lift"], r["drag"])
-    @printf("AWETrim %-16s tape %.2f m  v_a %5.2f m/s  trim %s N (%5.2f°)  at V3Kite AoA %s N\n",
-            label, res["tape"], res["v_app"], fmt(trim), get(trim, "angle_of_attack", NaN), fmt(at_aoa))
+    @printf("AWETrim %-16s tape %.2f m  v_a %5.2f m/s  trim %s N (%5.2f°)\n",
+            label, res["tape"], res["v_app"], fmt(trim), get(trim, "angle_of_attack", NaN))
 end
 
 mkpath(dirname(RESULT_FILE))
