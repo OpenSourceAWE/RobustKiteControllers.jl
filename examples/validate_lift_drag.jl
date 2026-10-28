@@ -67,7 +67,7 @@ const HEADING = (P = 1.1, I = false, D = 0.15, v_app_ref = 13.1, v_app_min = 5.0
 const WIND_TRIM = (gain = 0.4, max_rate = 0.5, tau = 2.0)
 
 (; points, t_trim, t_avg, fly, url) = script_inputs(@__FILE__,
-    (; points = [(1.58, 15.3), (1.58, 8.8), (1.76, 15.3), (1.76, 8.7)],
+    (; points = [(1.60, 15.3), (1.60, 8.8), (1.76, 15.3), (1.76, 8.7)],
        t_trim = 30.0, t_avg = 10.0, fly = true, url = AWETRIM_URL))
 
 """
