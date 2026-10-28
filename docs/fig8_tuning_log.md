@@ -6455,3 +6455,26 @@ With V3Kite's linear tape map and the new AWETrim the Maasvlakte scenarios flew 
 The -0.013 step gives d ln P / d rel_depower ~ -16. At -0.018: depower 0.268/0.268/0.287,
 measured 1962/11692/23126 W. The peak phase-4 force at 10 m/s rose from 7228 to 7735 N,
 above the 7200 N `f_high`; the other wind speeds were not re-flown.
+
+## 2026-10-28 — Lift/drag validation against the AWETrim ROM: not a valid comparison yet
+
+`examples/validate_lift_drag.jl` compares V3Kite's lift and drag with `rom_config_aerostructural2.yaml`
+at the same power tape and apparent wind speed. The two sides are NOT trimmed under the same
+condition, so the numbers are not a validation of either model:
+
+- V3Kite: parked at 150 m and 71-77° elevation, carrying its weight, the KCU's and the tether's;
+  angle of attack 3.5-4.8° (`span_mean_aoa`, the span mean of the VSM panels' geometric angle).
+- ROM: its gravity-free trim at the centre of the wind window, `alpha = atan2(C_D, C_L) - theta_b(u_p)`
+  (AWETrim `system/rom_forces.py`); angle of attack 1.1-2.2° (the wing angle of its identification).
+
+| tape | v_a | V3Kite L / D | ROM trim L / D | ΔL | ΔD |
+|--|--|--|--|--|--|
+| 1.60 m | 15.3 | 1637 / 240 | 1676 / 265 | +2 % | +11 % |
+| 1.60 m | 8.8 | 584 / 82 | 554 / 88 | -5 % | +7 % |
+| 1.76 m | 15.3 | 1358 / 226 | 1408 / 253 | +4 % | +12 % |
+| 1.76 m | 8.6 | 478 / 74 | 450 / 81 | -6 % | +9 % |
+
+V3Kite drag is the VSM wing plus all bridle lines, AWETrim's basis. Agreement within ±6 % in lift
+and 7-12 % in drag comes from two different flight states, so it says nothing yet. A valid
+comparison needs both models in the same trim condition: the same flight state (elevation,
+gravity, KCU and tether loads) or the same angle of attack under one definition.

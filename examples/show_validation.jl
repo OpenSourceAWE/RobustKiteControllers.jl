@@ -131,7 +131,10 @@ function write_validation_html(data, file)
           <p class="meta">Flown $(esc(flown["date"])) (RobustKiteControllers $(esc(git["hash"]))
           $(esc(git["status"]))), AWETrim queried $(esc(data["queried"])) at $(esc(data["url"])).
           Parked at $(num(flown["park"]["tether_length"])) m, $(esc(flown["park"]["project"])),
-          averaged over $(num(flown["t_avg"])) s per point.</p>""")
+          averaged over $(num(flown["t_avg"])) s per point.</p>
+          <p class="bad">Not a valid comparison: the two models are not in the same trim
+          condition. V3Kite is parked and carries its weight, the KCU's and the tether's; the
+          ROM is at its gravity-free trim at the centre of the wind window.</p>""")
         for label in data["roms"]
             rom_table(io, label, data["v3kite"], data["awetrim"])
         end
