@@ -6497,3 +6497,28 @@ From 1.6 m IPOPT walks to the depowered side, where this ROM's trim angle of att
 lower than the flight-corrected ROM's at the same tape) drops below the optimizer's 0° bound;
 relaxing that bound to -5° does not help. The optimum is at the bottom of the band, 1.35 m. Only
 7 m/s was checked; the seed ramp above 7 m/s (0.25 m per m/s) is unchanged and untested on this ROM.
+
+## 2026-10-28 — Startup on `rom_config_aerostructural2`: wider box, larger guess, size retries
+
+The scenario build with seed 1.5 m flew 4 and 7 m/s (all 10 criteria, power ratio 0.92 and 0.94,
+18.4 kW at 7 m/s) and failed the startup solve at Maasvlakte 3.5, 5, 6, 8 and 8.25 m/s. The exact
+startup requests, replayed in AWETrim's `ReeloutSession`:
+
+- seed 1.35-1.45 m, an alpha floor of -6° or a taller box alone: no change;
+- `gain_roll_steering` -0.376 -> -0.666 (the flight-corrected ROM's): all five converge. The new
+  ROM turns ~43 % less. That is physical for the geometry it was identified on (Bart's), not a
+  fitting error, so the requests have to fit a kite that turns less. Failures show steering
+  and its rate on their bounds, `s_dot` near 0 and alpha below 0°.
+- box 36° x 15° (half-spans) with a larger guess, seed 1.5 m:
+
+| guess | 5 | 6 | 7 | 8 | 8.25 m/s |
+|--|--|--|--|--|--|
+| 30 x 13 | fail | fail | OK | OK | OK |
+| 32 x 14 | OK | OK | fail | OK | OK |
+| 34 x 15 | OK | OK | OK | fail | OK |
+
+No single size covers all, so the guess is 32 x 14 and `startup_retry_guess_sizes` tries
+30 x 13 and 34 x 15 at the same centre before the elevation offsets. The seed ramp
+(`input_depower_per_wind` 0.25 -> 0) is gone: 8 m/s seeded at 1.75 m fails where 1.5 m converges.
+3.5 m/s (195 m tether) fails with every guess, seed and box tried. Only the startup requests
+were checked; the effect of the larger box on the flown runs is not.

@@ -12,17 +12,22 @@ traj_opt:
     free_speed_reference_points: 6  # free_speed solves for the reference power AFTER the run; 0 = off [-]
 
   guess:  # initial guess; seeds a multi-modal solve: changes the answer, not the run time
-    guess_a:          30.0   # width of the guess; azimuth spans ±guess_a    [deg]
-    guess_b:          12.0   # height of the guess, peak to peak             [deg]
+    guess_a:          32.0   # width of the guess; azimuth spans ±guess_a    [deg]
+    guess_b:          14.0   # height of the guess, peak to peak             [deg]
     guess_el_center:  29.0   # centre elevation of the guess; first knob to move on a 422 [deg]
     guess_el_center_high:      30.0   # centre elevation at/above the ref wind (a step, not a ramp) [deg]
     guess_el_center_wind_ref:   8.0   # wind at/above which guess_el_center_high applies [m/s]
     startup_retry_el_offsets: [-1.0, 2.0, -2.0]   # seeds tried in order on a startup 422; [] never retries [deg]
+    # Guess sizes [guess_a, guess_b] tried at the base centre on a startup 422, before the offsets.
+    # rom_config_aerostructural2 (2026-10-28): 32x14 converges at 5, 6, 8, 8.25 m/s, 30x13 at 7, 8,
+    # 8.25 and 34x15 at 5, 6, 7, 8.25 m/s; no single size covers all [deg]
+    startup_retry_guess_sizes: [[30.0, 13.0], [34.0, 15.0]]
 
   seed:  # depower seed of the solve, ramped with the wind
     input_depower:     1.5   # depower SEED in metres of tape (server bounds 1.1-2.3), not depower_setpoint [m]
     input_depower_wind_ref:  7.0   # wind at which input_depower IS the seed  [m/s]
-    input_depower_per_wind:  0.25  # tape added per m/s above that; one-sided [m/(m/s)]
+    input_depower_per_wind:  0.0   # tape added per m/s above that; one-sided; 0.25 seeded 8 m/s at 1.75 m, which
+                                   # fails on rom_config_aerostructural2 where 1.5 m converges [m/(m/s)]
     input_depower_seed_max:  1.85  # ramp ceiling, below the server's 2.3 m  [m]
     # Estimate of the tape length the startup reply is FLOWN at, which sizes the turn-radius
     # request; 0 takes the seed above. Fitted 2026-10-05 to the startup replies of the base
@@ -39,16 +44,17 @@ traj_opt:
     depower_offset:          0.0   # [-]
 
   box:  # pattern box the optimizer solves UNDER; 0.0 keeps the server default (|az| <= 45.8, 0.6 <= el <= 51.6)
-    pattern_azimuth_max: 28.0        # closes the wide basin seen at 5.5 m/s; good runs fly ±18-25 [deg]
-    pattern_azimuth_max_high: 34.0   # cap at/above pattern_elevation_amplitude_max_wind_ref: under the 45° climb
+    pattern_azimuth_max: 36.0        # 28 until 2026-10-28; rom_config_aerostructural2 turns ~43 % less and needs a
+                                     # wider and taller box: no startup solve at 5-8.25 m/s under 28 x 8.5 [deg]
+    pattern_azimuth_max_high: 36.0   # cap at/above pattern_elevation_amplitude_max_wind_ref: under the 45° climb
                                      # limit Cabauw 10 needs ±28.4-28.8° at 150 m and IPOPT 2-3° of room: 422 under
                                      # 28 and 29 at r_min 22.8 m, under 30 at 23.5 m (quadratic depower
                                      # conversion); converges under 31 and 32 (2026-10-03). 36 -> 34 (2026-10-05):
                                      # at 36 the re-optimizations at Cabauw 10 grew to ±32° x 21°, RMS d 1.61°;
                                      # at 34 ±22° x 16°, RMS d 1.44°, 22.7 instead of 20.4 kW [deg]
-    pattern_elevation_amplitude_max: 8.5   # largest elevation HALF-SPAN of the figure; 0.0 = off [deg];
+    pattern_elevation_amplitude_max: 15.0  # largest elevation HALF-SPAN of the figure; 0.0 = off; 8.5 until 2026-10-28 [deg];
                                            # 8.0 left Maasvlakte 3.5 m/s infeasible at 8.12° (2026-09-24)
-    pattern_elevation_amplitude_max_high:     13.0  # cap at/above the ref wind (a step, not a ramp) [deg]
+    pattern_elevation_amplitude_max_high:     15.0  # cap at/above the ref wind (a step, not a ramp); 13 until 2026-10-28 [deg]
     pattern_elevation_amplitude_max_wind_ref: 13.2  # wind AT the height below at/above which the high cap
                                                     # applies: Maasvlakte 10 m/s is 12.9 there and flies under
                                                     # 8°, Maasvlakte 11 (14.2) and Cabauw 7-10 (13.5-19.3) need

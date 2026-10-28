@@ -229,7 +229,7 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
                 center(p) in bad && throw(_cached_422(Dict("reason" => "test")))
                 return (; seed = center(p)), traj(center(p))
             end
-            r = solve_startup(tos, el -> params(; el_center = el), solve, params(), 25.0, 150.0,
+            r = solve_startup(tos, (el, _) -> params(; el_center = el), solve, params(), 25.0, 150.0,
                               WINCH, INFLOW; failure_file = file)
             return r, sent
         end
@@ -272,6 +272,20 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
         tosoff = TrajOptSettings(tos; opt_failure_cache = false)
         r, sent = run([25.0]; file, tos = tosoff)
         @test sent == [25.0, 24.0] && length(opt_failures(; file)) == 1
+
+        # A guess size of startup_retry_guess_sizes is tried at the same centre before the offsets.
+        toss = TrajOptSettings(tos; startup_retry_guess_sizes = [[40.0, 20.0]], opt_failure_cache = false)
+        widths = Float64[]
+        make = (el, sz) -> isnothing(sz) ? params(; el_center = el) :
+            params(; trajectory = Trajectory([0.0, sz[1], 0.0, -sz[1]], el .+ [0.0, 10.0, 0.0, -10.0]))
+        solve_w = function (p)
+            push!(widths, maximum(p.trajectory.azimuth))
+            maximum(p.trajectory.azimuth) < 15 && throw(_cached_422(Dict("reason" => "test")))
+            return (; seed = 0.0), traj()
+        end
+        r = @test_logs (:warn, r"40° x 20° guess") match_mode = :any solve_startup(toss, make,
+                solve_w, params(), 25.0, 150.0, WINCH, INFLOW; failure_file = file)
+        @test widths == [10.0, 40.0] && r.startup_seed_offset == 0.0
     end
 
     @testset "reply_parsing" begin

@@ -49,6 +49,8 @@ $(TYPEDFIELDS)
     guess_el_center_wind_ref = 0.0
     "Guess elevation offsets tried in order when the startup solve fails [deg]"
     startup_retry_el_offsets::Vector{Float64} = Float64[]
+    "Guess sizes `[guess_a, guess_b]` tried in order when the startup solve fails, before the offsets [deg]"
+    startup_retry_guess_sizes::Vector{Vector{Float64}} = Vector{Float64}[]
 end
 
 """

@@ -7,16 +7,17 @@
 # beyond reading `setup.s.dt`, so the package still does not depend on it.
 
 """
-    startup_params(setup, el_center) -> InitParams
+    startup_params(setup, el_center, size = nothing) -> InitParams
 
 The startup `/init` request seeded with the guess lemniscate centred at
-`el_center` [deg] and fitted into the startup box `opt_box` ([`guess_in_box`](@ref)), as the
-cold re-optimizations are; everything else comes from `tos`, the inflow and the
-first-lap winch.
+`el_center` [deg], `size = (guess_a, guess_b)` [deg] or `tos`'s own, and fitted into the
+startup box `opt_box` ([`guess_in_box`](@ref)), as the cold re-optimizations are; everything
+else comes from `tos`, the inflow and the first-lap winch.
 """
-function startup_params(setup, el_center)
+function startup_params(setup, el_center, size = nothing)
     (; tos, l_set, winch_first_lap, inflow, opt_r_min, opt_box) = setup
-    guess_a, guess_b, guess_el = guess_in_box(tos.guess.guess_a, tos.guess.guess_b, el_center, opt_box)
+    a, b = something(size, (tos.guess.guess_a, tos.guess.guess_b))
+    guess_a, guess_b, guess_el = guess_in_box(a, b, el_center, opt_box)
     az, el = figure_eight_path(guess_a, guess_b, 0.0, guess_el, 0.0, GUESS_POINTS)
     InitParams(; name = OPT_NAME, length = opt_length(l_set),
                winch_params = winch_first_lap, inflow_conditions = inflow,
@@ -64,7 +65,8 @@ function solve_startup_path!(setup, st::RunState)
     (; tos, el_center_seed_base, l_set, winch, inflow) = setup
     t_solve_start = time()
     (; opt_result, el_center_seed, startup_seed_offset, guess_az, guess_el) =
-        solve_startup(tos, el -> startup_params(setup, el), params -> startup_solve(setup, params),
+        solve_startup(tos, (el, size) -> startup_params(setup, el, size),
+                      params -> startup_solve(setup, params),
                       startup_params(setup, setup.el_center_seed), el_center_seed_base, l_set, winch,
                       inflow)
     st.opt_result = opt_result

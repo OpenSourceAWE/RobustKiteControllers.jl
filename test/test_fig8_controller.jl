@@ -1069,8 +1069,11 @@ end
         # The shipped file loads, and its guess is NOT the reel-out pattern: those
         # 20°/11°-at-18° values do not converge at 150 m and 6 m/s (2026-08-18).
         @test tos.server.base_url == "http://127.0.0.1:8000"
-        @test tos.guess.guess_a == 30.0
-        @test tos.guess.guess_b == 12.0
+        # 30°/12° -> 32°/14° with retries at 30°/13° and 34°/15°: rom_config_aerostructural2
+        # turns ~43 % less, and no single size starts it at 5-8.25 m/s (2026-10-28).
+        @test tos.guess.guess_a == 32.0
+        @test tos.guess.guess_b == 14.0
+        @test tos.guess.startup_retry_guess_sizes == [[30.0, 13.0], [34.0, 15.0]]
         # 30 since 2026-08-20 (ad08158), not the 26 that was the narrower basin in
         # tether LENGTH before it: raising wc_settings' f_high 7600 -> 8000 moves the
         # request's f_max with it, and at 150.0 m / 9 m/s the 22 seed throws IPOPT's
@@ -1080,10 +1083,12 @@ end
         # 8° -> 10° at 11 m/s: the 8° cap that closes the tall basin below 11 m/s
         # cannot hold the 17.3°-tall figure that IS the good basin there (2026-09-21).
         # 8° -> 8.5°: Maasvlakte 3.5 m/s needs 8.12° (2026-09-24).
-        @test tos.box.pattern_elevation_amplitude_max == 8.5
+        # 8.5° -> 15° for rom_config_aerostructural2, which needs a taller figure (2026-10-28).
+        @test tos.box.pattern_elevation_amplitude_max == 15.0
         # 10° -> 11°: Cabauw 10 at f_high 7200 N needs 10.5-10.7° at 150 m (2026-09-23).
         # 11° -> 13°: with the wing drag Cabauw 10 needs more (2026-10-05, commit 1290d50).
-        @test tos.box.pattern_elevation_amplitude_max_high == 13.0
+        # 13° -> 15° (2026-10-28), not below the low-wind cap.
+        @test tos.box.pattern_elevation_amplitude_max_high == 15.0
         # Keyed on the 100 m wind: Maasvlakte 10 m/s is 12.9 there, Cabauw 7 m/s 13.5.
         @test tos.box.pattern_elevation_amplitude_max_wind_ref == 13.2
         @test tos.box.pattern_elevation_amplitude_max_wind_height == 100.0
@@ -1091,8 +1096,9 @@ end
         # and the startup solve 2-3° of room beyond (2026-10-03). 32° -> 36° with the wing drag
         # (1290d50), then 36° -> 34°: at 36° the re-optimizations at Cabauw 10 grew to ±32° x 21°
         # and tracked worse (2026-10-05, b68455e).
-        @test tos.box.pattern_azimuth_max == 28.0
-        @test tos.box.pattern_azimuth_max_high == 34.0
+        # Both 36° for rom_config_aerostructural2 (2026-10-28).
+        @test tos.box.pattern_azimuth_max == 36.0
+        @test tos.box.pattern_azimuth_max_high == 36.0
         # The optimizer's lopsided basins are closed by the mirror-symmetry rows (2026-09-25).
         @test tos.box.pattern_symmetric === true
         @test TrajOptSettings().box.pattern_symmetric === false
@@ -1194,13 +1200,11 @@ end
         let L = 187.0, el_ask = asind(tos.gates.min_height / L)
             @test path_min_height([0.0, 1.0], [el_ask, el_ask + 5], L) ≈ tos.gates.min_height
         end
-        # The depower seed follows the wind, and only UPWARDS from the reference:
-        # all six runs of the 5.0-7.0 m/s scan converged from 1.6 m, so the
-        # reference may not drop below the top of that scan, while 8.0 m/s did not
-        # converge from it (2026-08-20, a 422 out of /step's stage 1, which carries
-        # no turn-radius constraint at all).
-        @test tos.seed.input_depower_wind_ref >= 7.0
-        @test tos.seed.input_depower_per_wind > 0
+        # The depower seed is flat for rom_config_aerostructural2: the ramp seeded 8 m/s at
+        # 1.75 m, which fails where 1.5 m converges (2026-10-28). The flight-corrected ROM
+        # needed it upwards from 7 m/s (2026-08-20).
+        @test tos.seed.input_depower == 1.5
+        @test tos.seed.input_depower_per_wind == 0.0
         # The DEFAULT is the behaviour before the ramp existed: input_depower
         # whatever the wind.
         @test TrajOptSettings().seed.input_depower_per_wind == 0.0
