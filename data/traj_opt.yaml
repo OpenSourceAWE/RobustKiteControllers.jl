@@ -20,7 +20,7 @@ traj_opt:
     startup_retry_el_offsets: [-1.0, 2.0, -2.0]   # seeds tried in order on a startup 422; [] never retries [deg]
 
   seed:  # depower seed of the solve, ramped with the wind
-    input_depower:     1.6   # depower SEED in metres of tape (server bounds 1.1-2.3), not depower_setpoint [m]
+    input_depower:     1.5   # depower SEED in metres of tape (server bounds 1.1-2.3), not depower_setpoint [m]
     input_depower_wind_ref:  7.0   # wind at which input_depower IS the seed  [m/s]
     input_depower_per_wind:  0.25  # tape added per m/s above that; one-sided [m/(m/s)]
     input_depower_seed_max:  1.85  # ramp ceiling, below the server's 2.3 m  [m]

@@ -6478,3 +6478,22 @@ V3Kite drag is the VSM wing plus all bridle lines, AWETrim's basis. Agreement wi
 and 7-12 % in drag comes from two different flight states, so it says nothing yet. A valid
 comparison needs both models in the same trim condition: the same flight state (elevation,
 gravity, KCU and tether loads) or the same angle of attack under one definition.
+
+## 2026-10-28 — Depower seed 1.6 -> 1.5 m for `rom_config_aerostructural2.yaml`
+
+With the new ROM (Oriol's, fitted to V3Kite, valid from 1.35 m of tape) every startup solve at
+Maasvlakte 7 m/s failed, all four guess elevations. Replaying the exact startup request in AWETrim's
+`ReeloutSession` (no simulation) isolates the seed `input_depower`:
+
+| ROM | seed [m] | result |
+|--|--|--|
+| flight-corrected | 1.6 | converged, 1.628 m, 11.7 kW |
+| `rom_config_aerostructural.yaml` | 1.6 | converged, 1.329 m, 21.1 kW |
+| `rom_config_aerostructural2.yaml` | 1.6 | IPOPT stuck near 2.0 m, alpha below its 0° bound |
+| `rom_config_aerostructural2.yaml` | 1.5 | converged, 1.350 m, 17.8 kW |
+| `rom_config_aerostructural2.yaml` | 1.4 | converged, 1.350 m, 17.8 kW |
+
+From 1.6 m IPOPT walks to the depowered side, where this ROM's trim angle of attack (about 1.5°
+lower than the flight-corrected ROM's at the same tape) drops below the optimizer's 0° bound;
+relaxing that bound to -5° does not help. The optimum is at the bottom of the band, 1.35 m. Only
+7 m/s was checked; the seed ramp above 7 m/s (0.25 m per m/s) is unchanged and untested on this ROM.
