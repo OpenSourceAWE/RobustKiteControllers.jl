@@ -43,6 +43,7 @@ const IDENTIFICATION_SCRIPTS = [
     "stability_opt_reelout.jl       - disk margins of the reel-out course loop with the identified model" => "stability_opt_reelout.jl",
     "validate_lift_drag.jl          - lift and drag of V3Kite vs. the AWETrim ROM (3 min!)" => "validate_lift_drag.jl",
     "show_validation.jl             - show the lift/drag validation in the browser" => "show_validation.jl",
+    "validate_masses.jl             - masses of V3Kite vs. AWETrim's model" => "validate_masses.jl",
 ]
 
 """

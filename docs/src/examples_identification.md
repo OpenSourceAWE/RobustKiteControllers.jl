@@ -179,3 +179,10 @@ without flying. About 3 minutes of simulation.
 ### [`show_validation.jl`](https://github.com/OpenSourceAWE/RobustKiteControllers.jl/blob/main/examples/show_validation.jl)
 Shows the saved comparison as an HTML page in the default browser: the ROM against V3Kite, with the
 deviation in percent and the points outside the ROM's validity band marked, and V3Kite's drag split.
+
+### [`validate_masses.jl`](https://github.com/OpenSourceAWE/RobustKiteControllers.jl/blob/main/examples/validate_masses.jl)
+Prints the masses of V3Kite's structure (for the project selected in `data/gui.yaml`) next to
+those of AWETrim's system file: canopy, bridle (lines and point masses), KCU, the airborne
+total, the wing mass AWETrim's trim actually uses, and the tether mass per metre. Builds the
+structure without compiling a model and reads AWETrim's file with AWETrim's own Python, so it
+needs neither a running server nor a flight.
