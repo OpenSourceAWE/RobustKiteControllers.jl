@@ -4,7 +4,8 @@
 """
 Re-fly every archived scenario of both sites (`output/scenarios/maasvlakte/`
 and `output/scenarios/cabauw/`) with the current code and settings, and
-replace each scenario folder with the new run.
+replace each scenario folder with the new run. A missing `output/scenarios` is
+linked to `../SimulationResults/scenarios` first (`ensure_scenarios_link`).
 
 For each site the wind speeds are read from the run summaries of its scenario
 folders; a `_2`, `_3`, ... repeat shares its wind speed with the unsuffixed
@@ -46,6 +47,27 @@ const SITE_PROJECTS = [
 output_dir = normpath(joinpath(@__DIR__, "..", "output"))
 run_done_file = joinpath(output_dir, "last_run_done.txt")
 progress_file = joinpath(output_dir, "build_all_scenarios.txt")
+
+"""
+    ensure_scenarios_link(output_dir)
+
+Make sure `output_dir/scenarios` exists. If it does not, create it as a relative symlink
+to the `SimulationResults/scenarios` checkout next to this package; an error if that
+checkout is missing or the link exists but is broken.
+"""
+function ensure_scenarios_link(output_dir)
+    link = joinpath(output_dir, "scenarios")
+    isdir(link) && return nothing
+    islink(link) && error("$link is a broken symlink to $(readlink(link)); fix or remove it.")
+    target = normpath(joinpath(output_dir, "..", "..", "SimulationResults", "scenarios"))
+    isdir(target) || error("No $link and no $target to link it to: clone SimulationResults \
+                            next to RobustKiteControllers.jl.")
+    mkpath(output_dir)
+    symlink(relpath(target, output_dir), link)
+    @info "Linked $link -> $(readlink(link))"
+    return nothing
+end
+ensure_scenarios_link(output_dir)
 
 """
     scenario_winds(site) -> Vector{Float64}
