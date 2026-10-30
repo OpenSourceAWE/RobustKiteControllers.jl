@@ -805,6 +805,7 @@ end
         @test winch_f_low(4.0; project = p) == 700.0
         @test winch_f_low(3.5; project = p) ≈ 525.0
         @test winch_f_low(9.0; project = p) == 700.0
+        @test winch_kv(3.5; project = p) == 0.020
         @test winch_kv(4.0; project = p) == 0.030
         @test winch_kv(4.5; project = p) ≈ 0.0354
         @test winch_kv(5.0; project = p) == 0.0408

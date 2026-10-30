@@ -6567,3 +6567,11 @@ limit relaxed, or the full box restored after a relaxed solve all fail); and a s
 `kv` is a column of `winch_table.yaml` again (`winch_kv`): 0.030 at 3 and 4 m/s, 0.0408
 from 5 m/s up. Flown at 4 m/s: all 10 criteria, 3.1 kW measured, power ratio 0.99,
 3 paths installed, 1.41 m/s mean reel-out speed. 3 m/s (Cabauw) flies 0.030 untested.
+
+Maasvlakte 3.5 m/s (195 m) at `k_v` 0.030 failed every startup retry too. Its recorded
+request converges at `k_v` 0.019-0.022 (1.73-1.67 kW, also with the guess moved ±2°) and
+fails at 0.015, 0.017, 0.018, 0.023, 0.025 and 0.030, with the light wing as the only other
+converging variant (seed 1.35 m, +2° and the relaxed box fail). New 3.5 m/s row at `k_v`
+0.020, and 0.020 at 3 m/s so that `k_v` does not rise as the wind drops (3 m/s untested).
+Flown at 3.5 m/s: all 10 criteria, 1.9 kW measured, power ratio 1.02, 6 paths installed,
+0.9 m/s mean reel-out speed.

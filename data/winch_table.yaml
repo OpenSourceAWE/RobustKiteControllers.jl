@@ -9,9 +9,10 @@
 #          0.0408 and no column from 2026-10-02 until 2026-10-30, when the kite got
 #          its 1.62 kg bridle (12.62 kg wing): the 4 m/s startup request then has no
 #          solution under the pattern box at 0.0408 or 0.050, and converges at 0.030
-#          (2967 W) and 0.025 (3074 W). 0.030 at 3 and 4 m/s, the measured value
-#          closest to the old one; 3 m/s is untested. The 5 m/s row holds 0.0408 so
-#          that 5 m/s and up fly as before.
+#          (2967 W) and 0.025 (3074 W), so 0.030 at 4 m/s, the measured value closest
+#          to the old one. 3.5 m/s fails at 0.030, 0.025, 0.018 and 0.023 and converges
+#          from 0.019 to 0.022 (1.73-1.67 kW), so 0.020 at 3.5 and, untested, at 3 m/s.
+#          The 5 m/s row holds 0.0408 so that 5 m/s and up fly as before.
 #
 # f_low  — force floor [N] below which the LowerForceController reels in. It has
 #          to move with the wind because the winch's rating does not and the
@@ -58,7 +59,11 @@ entries:
   - v_wind: 3.0
     f_low: 350.0
     force_limit: "soft"
-    kv: 0.030
+    kv: 0.020
+  - v_wind: 3.5
+    f_low: 525.0
+    force_limit: "soft"
+    kv: 0.020
   - v_wind: 4.0
     f_low: 700.0
     force_limit: "soft"
