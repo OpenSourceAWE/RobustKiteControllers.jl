@@ -88,7 +88,8 @@ fc_settings:
   winch:  # compliance of the force-mode winch (its gains are in wc_settings.yaml) and force guards
     compliance:         0.0      # Fixed at POSITION mode; REEL_OUT needs the drum free [-]
     entry_f_min:        350.0    # Entry-guard (guard_lfc) force floor, phases 0-2; not wc's f_low [N]
-    first_lap_force_frac: 0.93   # f_high x this in lap 1 AND for the startup solve; 1.0 = no lap-1 de-rating [-]
+    first_lap_force_frac: 0.96   # f_high x this in lap 1 AND for the startup solve; 1.0 = no lap-1 de-rating;
+                                 # 0.93 until 2026-10-31, see docs/fig8_tuning_log.md [-]
 
   reelout:  # REEL_OUT winch and phase 5; kv/f_low/f_high/v_sat are in wc_settings.yaml
     reelout_l_max:      380.0    # Length at which reel-out stops; AWETrim's reopt ceiling is ~325 m [m]

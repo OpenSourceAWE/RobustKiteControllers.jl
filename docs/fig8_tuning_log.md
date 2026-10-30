@@ -6575,3 +6575,17 @@ converging variant (seed 1.35 m, +2° and the relaxed box fail). New 3.5 m/s row
 0.020, and 0.020 at 3 m/s so that `k_v` does not rise as the wind drops (3 m/s untested).
 Flown at 3.5 m/s: all 10 criteria, 1.9 kW measured, power ratio 1.02, 6 paths installed,
 0.9 m/s mean reel-out speed.
+
+## 2026-10-31 — `first_lap_force_frac` 0.93 -> 0.96: Maasvlakte 9 m/s with the 12.62 kg wing
+
+Maasvlakte 8.5 m/s flies with the 1.62 kg bridle unchanged (all 10 criteria, 19.2 kW, power
+ratio 0.91); 9 m/s failed every startup retry. Its recorded request, replayed in AWETrim,
+converges with the light wing (18.3 kW), without the pattern box, with `symmetric` off alone
+(17.4 kW, the climb limit alone does not help), or with the startup `f_max` (`f_high` x
+`first_lap_force_frac`, 6696 N) raised to 6900 N (17.1 kW), 7200 N (18.2 kW) or 7500 N
+(19.2 kW). No help: guess ±2°, 30 x 13, seed 1.75 m, `k_v` 0.036 or 0.045, no turn-radius
+limit. `first_lap_force_frac` 0.96 (6912 N), the smallest step that converges, keeps the box;
+it was lowered to 0.93 on 2026-09-24 because 9 m/s then crossed the 8400 N rating in lap 1.
+Flown at 9 m/s: all 10 criteria (max force included), 17.8 kW measured, power ratio 0.89,
+phase-4 peak 6893 N. The factor applies at every wind speed; 10 and 11 m/s are not yet flown
+with it.
