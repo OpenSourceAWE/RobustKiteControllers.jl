@@ -20,8 +20,9 @@ traj_opt:
     startup_retry_el_offsets: [-1.0, 2.0, -2.0]   # seeds tried in order on a startup 422; [] never retries [deg]
     # Guess sizes [guess_a, guess_b] tried at the base centre on a startup 422, before the offsets.
     # rom_config_aerostructural2 (2026-10-28): 32x14 converges at 5, 6, 8, 8.25 m/s, 30x13 at 7, 8,
-    # 8.25 and 34x15 at 5, 6, 7, 8.25 m/s; no single size covers all [deg]
-    startup_retry_guess_sizes: [[30.0, 13.0], [34.0, 15.0]]
+    # 8.25 and 34x15 at 5, 6, 7, 8.25 m/s; no single size covers all; 26x11 at 5 m/s with the
+    # 12.62 kg wing (bridle 1.62 kg, 2026-10-30) where all the others fail [deg]
+    startup_retry_guess_sizes: [[30.0, 13.0], [34.0, 15.0], [26.0, 11.0]]
 
   seed:  # depower seed of the solve, ramped with the wind
     input_depower:     1.5   # depower SEED in metres of tape (server bounds 1.1-2.3), not depower_setpoint [m]

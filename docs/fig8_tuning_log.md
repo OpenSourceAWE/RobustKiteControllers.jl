@@ -6522,3 +6522,33 @@ No single size covers all, so the guess is 32 x 14 and `startup_retry_guess_size
 (`input_depower_per_wind` 0.25 -> 0) is gone: 8 m/s seeded at 1.75 m fails where 1.5 m converges.
 3.5 m/s (195 m tether) fails with every guess, seed and box tried. Only the startup requests
 were checked; the effect of the larger box on the flown runs is not.
+
+## 2026-10-30 — AWETrim flies V3Kite's bridle mass, 1.62 kg
+
+After AWETrim was merged up to its `main` (`feat/server-aero-forces` at `0947c52`) the scenario
+build failed the startup solve at Maasvlakte 3.5, 4, 5, 8.5, 9, 10 and 11 m/s; 4 and 5 m/s had
+flown on 2026-10-28 on the same commit (240de86) against the pre-merge AWETrim. AWETrim `aa25dfc`
+(2026-10-29) adds the bridle (2.58 kg, "lines + pulleys") to the point-mass wing: 10.99 ->
+13.58 kg, 22.0 kg airborne with the KCU. Replaying one failed 5 m/s request (default ROM)
+in-process: with the bridle mass the march stalls from node 20 of the guess (alpha 27-29°) and
+fails at node 25, IPOPT ends locally infeasible; with only the wing mass back at 11.0 kg it
+converges at 7.5 kW. At 10 m/s the mass costs a third of the predicted power (12.5 vs 17.9 kW).
+
+`examples/validate_masses.jl` puts V3Kite's structure next to AWETrim's file: canopy 10.99 kg
+(both), KCU 8.4 kg (both), bridle 1.62 kg in V3Kite (1.12 kg of lines at 724 kg/m³ plus five
+0.1 kg point masses) against 2.58 kg, so 21.0 kg airborne against 22.0 kg (19.4 kg before
+`aa25dfc`). Every `/init` now sends `system_config_path = awetrim_system_config()`, AWETrim's
+LEI-V3 file with the bridle mass set to `AWETRIM_BRIDLE_MASS` = 1.62 kg, written to
+`output/awetrim_system/` with the ROMs copied next to it. The file's content is part of the
+request key, so the cached solutions of the 2.58 kg kite are not replayed.
+
+With `rom_config_aerostructural2` the same replay did not separate the mass from the rest of
+the merge: 4 m/s converged before the merge and fails after it with either mass, 8.5 m/s the
+other way round, and 5 m/s at seed 1.5 m fails at node 0 in every version.
+
+Flown at 1.62 kg, Maasvlakte 5 m/s still failed every startup retry: the march broke at node
+28-30 of the guess. The replayed request (wing 12.62 kg) fails the same way with
+`turn_radius_headroom` 1.0 (8.98 m) and with no turn-radius limit, with seed 1.35 m, 3 or 5°
+lower, and 36 x 15; it converges with the canopy alone (10.99 kg, 6.3 kW), centred 3° higher
+(6.2 kW) or at 26 x 11 (5.9 kW). `startup_retry_guess_sizes` gains `[26, 11]`, and with it
+5 m/s flies: all 10 criteria, 6.1 kW measured, power ratio 0.99, 3 paths installed.

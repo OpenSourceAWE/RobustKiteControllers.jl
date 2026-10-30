@@ -60,6 +60,55 @@ The AWETrim ROM every request flies against, as `rom_config_path` of `/init` and
 that names another file.
 """
 const AWETRIM_ROM = "rom_config_aerostructural2.yaml"
+"The AWETrim checkout `bin/install_awetrim` creates and `bin/run_server` starts."
+const AWETRIM_DIR = normpath(joinpath(RKC_ROOT, "..", "AWETrim"))
+"""
+Bridle mass [kg] the AWETrim model flies with: V3Kite's, its bridle lines plus the point
+masses on them (`examples/validate_masses.jl`), instead of the 2.58 kg of AWETrim's file.
+"""
+const AWETRIM_BRIDLE_MASS = 1.62
+
+"""
+    awetrim_system_config(; awetrim_dir = AWETRIM_DIR, bridle_mass = AWETRIM_BRIDLE_MASS,
+                          dir = joinpath(RKC_ROOT, "output", "awetrim_system")) -> path
+
+Write AWETrim's LEI-V3 system file into `dir` with the bridle's `mass` set to
+`bridle_mass`, copy the ROM files next to it (the server resolves `rom_config_path`
+against the system file's folder) and return its path, the `system_config_path` of
+[`InitParams`](@ref). The line is replaced in the text, so the comments survive; a file
+already up to date is not rewritten. Returns `nothing`, with a warning, when there is no
+AWETrim checkout at `awetrim_dir`: the server then flies its own file.
+"""
+function awetrim_system_config(; awetrim_dir = AWETRIM_DIR, bridle_mass = AWETRIM_BRIDLE_MASS,
+                               dir = joinpath(RKC_ROOT, "output", "awetrim_system"))
+    src = joinpath(awetrim_dir, "data", "LEI-V3-KITE")
+    if !isfile(joinpath(src, "system.yaml"))
+        @warn "No AWETrim system file in $src: the server flies its own bridle mass." maxlog = 1
+        return nothing
+    end
+    lines = readlines(joinpath(src, "system.yaml"))
+    i_bridle = findfirst(l -> occursin(r"^\s*bridle:\s*$", l), lines)
+    isnothing(i_bridle) && error("No `bridle:` block in $(joinpath(src, "system.yaml"))")
+    indent = length(match(r"^\s*", lines[i_bridle]).match)
+    i_mass = nothing
+    for i in i_bridle+1:length(lines)
+        l = lines[i]
+        !isempty(strip(l)) && length(match(r"^\s*", l).match) <= indent && break
+        occursin(r"^\s*mass:", l) && (i_mass = i; break)
+    end
+    isnothing(i_mass) && error("No bridle `mass:` in $(joinpath(src, "system.yaml"))")
+    old = match(r"^(\s*mass:\s*)([^\s#]+)", lines[i_mass])
+    lines[i_mass] = old.captures[1] * "$bridle_mass" *
+                    "   # kg, V3Kite's bridle, set by RobustKiteControllers (was $(old.captures[2]))"
+    mkpath(dir)
+    file = joinpath(dir, "system.yaml")
+    text = join(lines, '\n') * '\n'
+    (isfile(file) && read(file, String) == text) || write(file, text)
+    for rom in filter(f -> startswith(f, "rom_config") && endswith(f, ".yaml"), readdir(src))
+        cp(joinpath(src, rom), joinpath(dir, rom); force = true)
+    end
+    return file
+end
 
 # ---------------------------------------------------------------------------
 # The shared structs (as agreed)
@@ -128,6 +177,7 @@ Base.@kwdef struct InitParams
     min_turn_radius::Union{Float64, Nothing} = nothing   # [m], 0/nothing = off
     pattern_limits::Union{PatternLimits, Nothing} = nothing
     rom_config_path::String = AWETRIM_ROM
+    system_config_path::Union{String, Nothing} = nothing   # `nothing`: the server's own file
 end
 
 Base.@kwdef struct StepParams
@@ -257,15 +307,20 @@ under the narrower keys rather than reusing them.
 
 The project is NOT part of the key, and needs not be: the server sees only the
 request, so two projects that send the same request pose the same problem and
-share the entry. What the key cannot see is the server's own configuration
-(kite, tether, solver defaults) — clear the cache after an AWETrim upgrade.
+share the entry. A `system_config_path` enters by the file's CONTENT, not its path, so
+a changed bridle mass gets new keys. What the key cannot see is the rest of the
+server's configuration (solver defaults, the code) — clear the cache after an AWETrim
+upgrade.
 
 The key is a [`stable_hash`](@ref), not Base's `hash`, so it survives a Julia
 upgrade. `"v4-"` retires the `hash`-based `"v3-"` keys.
 """
 function opt_request_key(p::InitParams)
-    return "v4-" * stable_hash(Tuple(_key_fields(getfield(p, f))
-                                      for f in fieldnames(InitParams) if f !== :name))
+    fields = Tuple(_key_fields(getfield(p, f)) for f in fieldnames(InitParams)
+                   if !(f in (:name, :system_config_path)))
+    isnothing(p.system_config_path) ||
+        (fields = (fields..., stable_hash(read(p.system_config_path, String))))
+    return "v4-" * stable_hash(fields)
 end
 
 """
@@ -1490,7 +1545,8 @@ function free_speed_reference(tos, wc, inflow, guess_az, guess_el, lengths;
                                 trajectory = Trajectory(collect(guess_az), collect(guess_el)),
                                 input_depower = depower_seed(tos, inflow.wind_speed),
                                 reg_weight = REG_WEIGHT,
-                                min_turn_radius, pattern_limits)
+                                min_turn_radius, pattern_limits,
+                                system_config_path = awetrim_system_config())
             reply = chain_init(ref_chain, params)
             result = chain_step(ref_chain, StepParams(l, ref_winch, reply.trajectory))
             if !isnothing(result.metrics)

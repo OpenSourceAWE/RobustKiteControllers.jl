@@ -12,7 +12,8 @@ The canopy is the `extra_mass` spread over the wing points, the KCU that of poin
 bridle is its line segments (density × cross-section × `l0`, as SymbolicAWEModels
 computes it) plus the `extra_mass` of the remaining points (pulleys).
 
-AWETrim side: the system file the server flies by default (`system_config` overrides it),
+AWETrim side: the system file the runs send, `awetrim_system_config()` (AWETrim's own
+file with the bridle mass set to `AWETRIM_BRIDLE_MASS`; `system_config` overrides it),
 read with AWETrim's own Python in `awetrim_dir`. `canopy`, `bridle` and `kcu` are the
 file's components; `wing in trim` is the point mass AWETrim's trim actually uses, which
 includes the bridle since AWETrim `aa25dfc` (2026-10-29) and is the canopy alone before.
@@ -26,7 +27,8 @@ if Base.active_project() != joinpath(@__DIR__, "Project.toml")
     Pkg.activate(joinpath(@__DIR__))
 end
 
-using RobustKiteControllers: run_example, script_inputs, project_file, read_gui_field
+using RobustKiteControllers: run_example, script_inputs, project_file, read_gui_field,
+                             awetrim_system_config, AWETRIM_DIR
 using V3Kite
 using V3Kite: V3SettleConfig, build_settling_struct, struc_geometry_path,
               aero_geometry_path, load_kite, project_data_path, resolve_aero_mode
@@ -36,8 +38,7 @@ using Printf
 
 (; project, awetrim_dir, system_config) = script_inputs(@__FILE__,
     (; project = something(read_gui_field("project"), "system_reelout_maasvlakte.yaml"),
-       awetrim_dir = normpath(joinpath(@__DIR__, "..", "..", "AWETrim")),
-       system_config = nothing))
+       awetrim_dir = AWETRIM_DIR, system_config = awetrim_system_config()))
 
 "Python run in AWETrim's venv: the masses of a system file as JSON on the last line"
 const AWETRIM_MASSES_PY = """

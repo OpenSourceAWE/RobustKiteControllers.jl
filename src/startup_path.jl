@@ -24,7 +24,8 @@ function startup_params(setup, el_center, size = nothing)
                trajectory = Trajectory(collect(az), collect(el)),
                input_depower = depower_seed(tos, inflow.wind_speed),
                reg_weight = REG_WEIGHT, depower = depower_spec(tos),
-               min_turn_radius = opt_r_min, pattern_limits = opt_box)
+               min_turn_radius = opt_r_min, pattern_limits = opt_box,
+               system_config_path = awetrim_system_config())
 end
 
 """
