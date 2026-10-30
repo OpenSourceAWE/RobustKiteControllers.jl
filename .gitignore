@@ -29,3 +29,4 @@ test/Manifest.toml
 docs/.$course_loop_model.drawio.bkp
 # Documenter output.
 /docs/build/
+install_version_1.13.txt
