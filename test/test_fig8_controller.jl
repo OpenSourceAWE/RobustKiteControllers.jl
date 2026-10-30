@@ -805,6 +805,10 @@ end
         @test winch_f_low(4.0; project = p) == 700.0
         @test winch_f_low(3.5; project = p) ≈ 525.0
         @test winch_f_low(9.0; project = p) == 700.0
+        @test winch_kv(4.0; project = p) == 0.030
+        @test winch_kv(4.5; project = p) ≈ 0.0354
+        @test winch_kv(5.0; project = p) == 0.0408
+        @test winch_kv(12.0; project = p) == 0.0408
 
         # Clamped outside the identified range, NEVER extrapolated: below the
         # first row and above the last, the end value is returned unchanged.
@@ -857,8 +861,7 @@ end
         # Integer input is converted, like turn_rate_coeffs'.
         @test winch_f_low(4; project = p) == winch_f_low(4.0; project = p)
 
-        # kv is flat in wc_settings.yaml, no longer a column of this table.
-        @test_throws ErrorException winch_table_lookup(6.0, "kv"; project = p)
+        @test winch_table_lookup(6.0, "kv"; project = p) == winch_kv(6.0; project = p)
         @test winch_table_lookup(6.0, "f_low"; project = p) == winch_f_low(6.0; project = p)
         # A column the table does not have is named in the error, not a KeyError
         # from inside the comprehension.
@@ -1070,10 +1073,11 @@ end
         # 20°/11°-at-18° values do not converge at 150 m and 6 m/s (2026-08-18).
         @test tos.server.base_url == "http://127.0.0.1:8000"
         # 30°/12° -> 32°/14° with retries at 30°/13° and 34°/15°: rom_config_aerostructural2
-        # turns ~43 % less, and no single size starts it at 5-8.25 m/s (2026-10-28).
+        # turns ~43 % less, and no single size starts it at 5-8.25 m/s (2026-10-28); 26°/11°
+        # starts 5 m/s with the 12.62 kg wing (2026-10-30).
         @test tos.guess.guess_a == 32.0
         @test tos.guess.guess_b == 14.0
-        @test tos.guess.startup_retry_guess_sizes == [[30.0, 13.0], [34.0, 15.0]]
+        @test tos.guess.startup_retry_guess_sizes == [[30.0, 13.0], [34.0, 15.0], [26.0, 11.0]]
         # 30 since 2026-08-20 (ad08158), not the 26 that was the narrower basin in
         # tether LENGTH before it: raising wc_settings' f_high 7600 -> 8000 moves the
         # request's f_max with it, and at 150.0 m / 9 m/s the 22 seed throws IPOPT's

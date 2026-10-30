@@ -6552,3 +6552,18 @@ Flown at 1.62 kg, Maasvlakte 5 m/s still failed every startup retry: the march b
 lower, and 36 x 15; it converges with the canopy alone (10.99 kg, 6.3 kW), centred 3° higher
 (6.2 kW) or at 26 x 11 (5.9 kW). `startup_retry_guess_sizes` gains `[26, 11]`, and with it
 5 m/s flies: all 10 criteria, 6.1 kW measured, power ratio 0.99, 3 paths installed.
+
+## 2026-10-30 — `kv` 0.030 at 3-4 m/s: Maasvlakte 4 m/s flies with the 12.62 kg wing
+
+With the 1.62 kg bridle Maasvlakte 4 m/s (195 m) failed every startup retry, sizes and
+elevation offsets from -6 to +5° included. Its exact requests were recorded
+(`OPT_REQUEST_RECORD`) and replayed in AWETrim, which reproduces the failure and the failed
++3° retry. Converged: the wing at 10.99 kg (3.1 kW); the pattern box without `symmetric`
+AND without `climb_angle_max` (2.5 kW, 61 s laps; either one alone, any other single
+limit relaxed, or the full box restored after a relaxed solve all fail); and a softer winch,
+`k_v` 0.030 (2967 W) or 0.025 (3074 W). No help: guess +2/+3°, 26 x 11 at +3°, seed
+1.35 m, no turn-radius limit, `k_v` 0.050, `f_min` 400 or 1000 N, tether 150, 170 or 220 m.
+
+`kv` is a column of `winch_table.yaml` again (`winch_kv`): 0.030 at 3 and 4 m/s, 0.0408
+from 5 m/s up. Flown at 4 m/s: all 10 criteria, 3.1 kW measured, power ratio 0.99,
+3 paths installed, 1.41 m/s mean reel-out speed. 3 m/s (Cabauw) flies 0.030 untested.

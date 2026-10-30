@@ -73,9 +73,9 @@ wc_settings:
   max_acc:       8.0       # rate limit of v_set; the reel-out's acceleration_limit [m/s^2]
   damage_factor: 0.2       # winch damage weighting (unused here)               [-]
   jerk_factor:   0.9       # jerk weighting in the damage calculation (unused here) [-]
-  # kv: `v_set = kv * sqrt(force)`, one value at every wind speed. It used to be
-  # a column of winch_kv_table.yaml (now winch_table.yaml), flat at 0.0408 from 3 to 12 m/s, and was
-  # removed from there 2026-10-02. The 10 m/s row was 0.039, identified
+  # kv: `v_set = kv * sqrt(force)`. Since 2026-10-30 the kv column of winch_table.yaml
+  # overrides this value (0.030 at 3-4 m/s, see there); before, it was flat at 0.0408 from
+  # 3 to 12 m/s and was no column from 2026-10-02. The 10 m/s row was 0.039, identified
   # 2026-08-27 (sweep below), and went back to the sweep's other passing value
   # 2026-09-22 — see the note under the sweep. 11 and 12 m/s fly 0.0408
   # UNTESTED at the current tether and winch controller: the 2026-08-26 notes
@@ -122,7 +122,7 @@ wc_settings:
   # 3.42 m/s mean, on the limit, so kv cannot lower its force: 0.043 made the
   # startup solve infeasible (2026-09-23). There the lever is f_high, see
   # docs/fig8_tuning_log.md.
-  kv:            0.0408    # v_set = kv * sqrt(force); same at every wind speed, see above [-]
+  kv:            0.0408    # v_set = kv * sqrt(force); the kv column of winch_table.yaml overrides it [-]
 
   # --- SPEED: how the force limits are enforced (PlanWinchSpeed.md, stage 4) --
   force_limit:      "soft" # "soft" (optimizer's tension curve) | "hard" (two limiters); winch_table.yaml overrides

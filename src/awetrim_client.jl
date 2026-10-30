@@ -541,6 +541,13 @@ function report_status_error(path, err)
     return nothing
 end
 
+"""
+File every POST to the server is appended to, one JSON line `{"path": ..., "body": ...}`
+per request, for replaying the exact requests in AWETrim; `nothing` (the default) records
+nothing. Set it in the REPL: `RobustKiteControllers.OPT_REQUEST_RECORD[] = "output/requests.jsonl"`.
+"""
+const OPT_REQUEST_RECORD = Ref{Union{String, Nothing}}(nothing)
+
 function post(path, payload; url = AWETRIM_URL, timeout = 600, attempts = 3)
     # The server closes idle keep-alive connections long before the run's next
     # request (a re-optimization is one lap apart, ~13 s), so a pooled socket is
@@ -558,6 +565,9 @@ function post(path, payload; url = AWETRIM_URL, timeout = 600, attempts = 3)
     # re-sending either recomputes and overwrites what the server holds under the
     # optimization's name — nothing accumulates.
     body = JSON3.write(payload)
+    isnothing(OPT_REQUEST_RECORD[]) ||
+        open(io -> println(io, "{\"path\":", JSON3.write(path), ",\"body\":", body, "}"),
+             OPT_REQUEST_RECORD[], "a")
     for attempt in 1:attempts
         isdefined(HTTP, :close_idle_connections!) && HTTP.close_idle_connections!()
         try

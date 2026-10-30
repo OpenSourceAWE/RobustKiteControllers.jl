@@ -114,9 +114,9 @@ const GUI_DEFAULT = read(joinpath(rkc_data_path(), "gui.yaml.default"), String)
             set = KiteUtils.Settings(project)
             (; wc, wpc, dt0) = build_winch(project, set, FC_Settings(; compliance = 0.0))
             @test dt0 == 1 / set.sample_freq && wc.dt == dt0
-            # The wind-dependent tables override the file's flat values; kv is not one of them.
-            @test wc.kv == RobustKiteControllers._wc_settings_value(project, "kv")
+            # The wind-dependent tables override the file's flat values.
             @test wc.f_low == winch_f_low(set.v_wind; project)
+            @test wc.kv == winch_kv(set.v_wind; project)
             @test wc.force_limit == winch_force_limit(set.v_wind; project)
             @test wpc isa WinchPosController
             # REEL_OUT holds the drum in POSITION mode: any compliance is refused.
