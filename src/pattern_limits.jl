@@ -103,12 +103,42 @@ function azimuth_max_at(tos, wind_speed)
 end
 
 """
+    shape_high(tos, wind_speed) -> Bool
+
+Whether the high-wind shape limits apply at `wind_speed`, the same wind as
+[`elevation_amplitude_max_at`](@ref) reads: at and above `tos.box.pattern_shape_wind_ref`,
+never when that is `0.0` or the wind is not known.
+"""
+shape_high(tos, wind_speed) =
+    tos.box.pattern_shape_wind_ref > 0 && !isnothing(wind_speed) &&
+    wind_speed >= tos.box.pattern_shape_wind_ref
+
+"""
+    symmetric_at(tos, wind_speed) -> Bool
+
+Whether the figure is held mirror-symmetric at `wind_speed`: `tos.box.pattern_symmetric_shape_high`
+where [`shape_high`](@ref), `tos.box.pattern_symmetric` below.
+"""
+symmetric_at(tos, wind_speed) =
+    shape_high(tos, wind_speed) ? tos.box.pattern_symmetric_shape_high : tos.box.pattern_symmetric
+
+"""
+    climb_angle_max_at(tos, wind_speed) -> Float64
+
+The climb-angle ceiling [deg] at `wind_speed`: `tos.box.pattern_climb_angle_max_shape_high`
+where [`shape_high`](@ref), `tos.box.pattern_climb_angle_max` below; `0.0` is off.
+"""
+climb_angle_max_at(tos, wind_speed) =
+    shape_high(tos, wind_speed) ? tos.box.pattern_climb_angle_max_shape_high :
+                                  tos.box.pattern_climb_angle_max
+
+"""
     pattern_limits_from(tos; elevation_min = nothing, wind_speed = nothing)
         -> Union{PatternLimits, Nothing}
 
 The box the optimized pattern must stay in, from the `pattern_*` fields of
 `data/traj_opt.yaml`; each is in degrees and each is off at `0.0`, and
-`tos.box.pattern_symmetric` adds the mirror-symmetry rows and `tos.box.pattern_climb_angle_max`
+[`symmetric_at`](@ref) adds the mirror-symmetry rows and [`climb_angle_max_at`](@ref)
 the climb-angle ceiling. `nothing` when all are
 off, which leaves the optimizer's own defaults alone.
 
@@ -123,8 +153,8 @@ function pattern_limits_from(tos; elevation_min = nothing, wind_speed = nothing)
                            elevation_min = on(elevation_min),
                            elevation_amplitude_max =
                                on(elevation_amplitude_max_at(tos, wind_speed)),
-                           symmetric = tos.box.pattern_symmetric ? true : nothing,
-                           climb_angle_max = on(tos.box.pattern_climb_angle_max))
+                           symmetric = symmetric_at(tos, wind_speed) ? true : nothing,
+                           climb_angle_max = on(climb_angle_max_at(tos, wind_speed)))
     all(isnothing, (limits.azimuth_max, limits.elevation_min, limits.elevation_amplitude_max,
                     limits.symmetric, limits.climb_angle_max)) &&
         return nothing

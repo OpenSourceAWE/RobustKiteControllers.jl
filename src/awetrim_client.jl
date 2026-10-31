@@ -53,6 +53,62 @@
 const RKC_ROOT = normpath(joinpath(@__DIR__, ".."))
 "Default server address; every function below takes `url` to override it."
 const AWETRIM_URL = "http://127.0.0.1:8000"
+"""
+The AWETrim ROM every request flies against, as `rom_config_path` of `/init` and
+`/aero_forces`: a file name resolved by the server next to its system file
+(`data/LEI-V3-KITE/` of the AWETrim checkout). [`opt_init`](@ref) refuses a reply
+that names another file.
+"""
+const AWETRIM_ROM = "rom_config_aerostructural2.yaml"
+"The AWETrim checkout `bin/install_awetrim` creates and `bin/run_server` starts."
+const AWETRIM_DIR = normpath(joinpath(RKC_ROOT, "..", "AWETrim"))
+"""
+Bridle mass [kg] the AWETrim model flies with: V3Kite's, its bridle lines plus the point
+masses on them (`examples/validate_masses.jl`), instead of the 2.58 kg of AWETrim's file.
+"""
+const AWETRIM_BRIDLE_MASS = 1.62
+
+"""
+    awetrim_system_config(; awetrim_dir = AWETRIM_DIR, bridle_mass = AWETRIM_BRIDLE_MASS,
+                          dir = joinpath(RKC_ROOT, "output", "awetrim_system")) -> path
+
+Write AWETrim's LEI-V3 system file into `dir` with the bridle's `mass` set to
+`bridle_mass`, copy the ROM files next to it (the server resolves `rom_config_path`
+against the system file's folder) and return its path, the `system_config_path` of
+[`InitParams`](@ref). The line is replaced in the text, so the comments survive; a file
+already up to date is not rewritten. Returns `nothing`, with a warning, when there is no
+AWETrim checkout at `awetrim_dir`: the server then flies its own file.
+"""
+function awetrim_system_config(; awetrim_dir = AWETRIM_DIR, bridle_mass = AWETRIM_BRIDLE_MASS,
+                               dir = joinpath(RKC_ROOT, "output", "awetrim_system"))
+    src = joinpath(awetrim_dir, "data", "LEI-V3-KITE")
+    if !isfile(joinpath(src, "system.yaml"))
+        @warn "No AWETrim system file in $src: the server flies its own bridle mass." maxlog = 1
+        return nothing
+    end
+    lines = readlines(joinpath(src, "system.yaml"))
+    i_bridle = findfirst(l -> occursin(r"^\s*bridle:\s*$", l), lines)
+    isnothing(i_bridle) && error("No `bridle:` block in $(joinpath(src, "system.yaml"))")
+    indent = length(match(r"^\s*", lines[i_bridle]).match)
+    i_mass = nothing
+    for i in i_bridle+1:length(lines)
+        l = lines[i]
+        !isempty(strip(l)) && length(match(r"^\s*", l).match) <= indent && break
+        occursin(r"^\s*mass:", l) && (i_mass = i; break)
+    end
+    isnothing(i_mass) && error("No bridle `mass:` in $(joinpath(src, "system.yaml"))")
+    old = match(r"^(\s*mass:\s*)([^\s#]+)", lines[i_mass])
+    lines[i_mass] = old.captures[1] * "$bridle_mass" *
+                    "   # kg, V3Kite's bridle, set by RobustKiteControllers (was $(old.captures[2]))"
+    mkpath(dir)
+    file = joinpath(dir, "system.yaml")
+    text = join(lines, '\n') * '\n'
+    (isfile(file) && read(file, String) == text) || write(file, text)
+    for rom in filter(f -> startswith(f, "rom_config") && endswith(f, ".yaml"), readdir(src))
+        cp(joinpath(src, rom), joinpath(dir, rom); force = true)
+    end
+    return file
+end
 
 # ---------------------------------------------------------------------------
 # The shared structs (as agreed)
@@ -105,6 +161,26 @@ struct Trajectory
     elevation::Vector{Float64}  # [deg], from the ground plane
 end
 
+"""
+    AngleOfAttackLimits(; min = nothing, max = nothing)
+
+Bounds on the angle of attack the optimizer may trim at [deg], in the ROM's own angle; an
+omitted side keeps the server's default (0° and 14°). Sent with `/init`, kept by the session.
+"""
+Base.@kwdef struct AngleOfAttackLimits
+    min::Union{Float64, Nothing} = nothing
+    max::Union{Float64, Nothing} = nothing
+end
+
+"""
+    aoa_limits(tos) -> Union{AngleOfAttackLimits, Nothing}
+
+The angle-of-attack limits a request carries: `tos.box.angle_of_attack_min` as the floor,
+`nothing` (the server's default) when it is `NaN`.
+"""
+aoa_limits(tos) = isnan(tos.box.angle_of_attack_min) ? nothing :
+                  AngleOfAttackLimits(; min = tos.box.angle_of_attack_min)
+
 Base.@kwdef struct InitParams
     name::String
     length::Float64                    # initial length of the tether
@@ -120,6 +196,9 @@ Base.@kwdef struct InitParams
     depower::Union{DepowerSpec, Nothing} = nothing
     min_turn_radius::Union{Float64, Nothing} = nothing   # [m], 0/nothing = off
     pattern_limits::Union{PatternLimits, Nothing} = nothing
+    rom_config_path::String = AWETRIM_ROM
+    system_config_path::Union{String, Nothing} = nothing   # `nothing`: the server's own file
+    angle_of_attack_limits::Union{AngleOfAttackLimits, Nothing} = nothing
 end
 
 Base.@kwdef struct StepParams
@@ -171,6 +250,7 @@ struct InitReply
     pattern_limits::Union{PatternLimits, Nothing}
     state::String
     n_points::Union{Int, Nothing}
+    rom_config::Union{String, Nothing}
 end
 
 """
@@ -201,6 +281,9 @@ StructTypes.StructType(::Type{DepowerSpec}) = StructTypes.Struct()
 StructTypes.StructType(::Type{PatternLimits}) = StructTypes.Struct()
 # Left out of the JSON while unset: a server older than the field rejects the key even as null.
 StructTypes.omitempties(::Type{PatternLimits}) = (:climb_angle_max,)
+StructTypes.StructType(::Type{AngleOfAttackLimits}) = StructTypes.Struct()
+StructTypes.omitempties(::Type{AngleOfAttackLimits}) = (:min, :max)
+StructTypes.omitempties(::Type{InitParams}) = (:angle_of_attack_limits,)
 
 # ---------------------------------------------------------------------------
 # Failed-request cache
@@ -248,15 +331,22 @@ under the narrower keys rather than reusing them.
 
 The project is NOT part of the key, and needs not be: the server sees only the
 request, so two projects that send the same request pose the same problem and
-share the entry. What the key cannot see is the server's own configuration
-(kite, tether, solver defaults) — clear the cache after an AWETrim upgrade.
+share the entry. A `system_config_path` enters by the file's CONTENT, not its path, so
+a changed bridle mass gets new keys. What the key cannot see is the rest of the
+server's configuration (solver defaults, the code) — clear the cache after an AWETrim
+upgrade.
 
 The key is a [`stable_hash`](@ref), not Base's `hash`, so it survives a Julia
 upgrade. `"v4-"` retires the `hash`-based `"v3-"` keys.
 """
 function opt_request_key(p::InitParams)
-    return "v4-" * stable_hash(Tuple(_key_fields(getfield(p, f))
-                                      for f in fieldnames(InitParams) if f !== :name))
+    fields = Tuple(_key_fields(getfield(p, f)) for f in fieldnames(InitParams)
+                   if !(f in (:name, :system_config_path, :angle_of_attack_limits)))
+    isnothing(p.system_config_path) ||
+        (fields = (fields..., stable_hash(read(p.system_config_path, String))))
+    isnothing(p.angle_of_attack_limits) ||
+        (fields = (fields..., _key_fields(p.angle_of_attack_limits)))
+    return "v4-" * stable_hash(fields)
 end
 
 """
@@ -275,7 +365,7 @@ stable_hash(x) = bytes2hex(sha256(repr(x)))[1:16]
 # Hashing the structs themselves would not do: the default `hash` of a struct
 # holding a `Vector` goes by the vector's identity, not its contents, so two
 # equal requests would never share a key.
-_key_fields(x::Union{WinchParams, InflowConditions, Trajectory, DepowerSpec, PatternLimits,
+_key_fields(x::Union{WinchParams, InflowConditions, Trajectory, DepowerSpec, PatternLimits, AngleOfAttackLimits,
                      StepParams}) =
     Tuple(_key_fields(getfield(x, f)) for f in fieldnames(typeof(x)))
 # `symmetric` and `climb_angle_max` came last; each is left out while off, so the keys cached
@@ -477,6 +567,13 @@ function report_status_error(path, err)
     return nothing
 end
 
+"""
+File every POST to the server is appended to, one JSON line `{"path": ..., "body": ...}`
+per request, for replaying the exact requests in AWETrim; `nothing` (the default) records
+nothing. Set it in the REPL: `RobustKiteControllers.OPT_REQUEST_RECORD[] = "output/requests.jsonl"`.
+"""
+const OPT_REQUEST_RECORD = Ref{Union{String, Nothing}}(nothing)
+
 function post(path, payload; url = AWETRIM_URL, timeout = 600, attempts = 3)
     # The server closes idle keep-alive connections long before the run's next
     # request (a re-optimization is one lap apart, ~13 s), so a pooled socket is
@@ -494,6 +591,9 @@ function post(path, payload; url = AWETRIM_URL, timeout = 600, attempts = 3)
     # re-sending either recomputes and overwrites what the server holds under the
     # optimization's name — nothing accumulates.
     body = JSON3.write(payload)
+    isnothing(OPT_REQUEST_RECORD[]) ||
+        open(io -> println(io, "{\"path\":", JSON3.write(path), ",\"body\":", body, "}"),
+             OPT_REQUEST_RECORD[], "a")
     for attempt in 1:attempts
         isdefined(HTTP, :close_idle_connections!) && HTTP.close_idle_connections!()
         try
@@ -574,7 +674,7 @@ function as_init_reply(reply)
                      as_depower(opt_get(reply, "depower")),
                      opt_float(reply, "min_turn_radius"),
                      as_pattern_limits(opt_get(reply, "pattern_limits")),
-                     reply["state"], opt_get(reply, "n_points"))
+                     reply["state"], opt_get(reply, "n_points"), opt_get(reply, "rom_config"))
 end
 
 function as_step_reply(reply)
@@ -602,10 +702,26 @@ optimization happens yet — that is [`opt_step`](@ref).
 
 The reply also states what the coming solves will run under: `depower.mode`,
 `min_turn_radius` and `pattern_limits`, each `nothing` where the server's own
-default applies.
+default applies, and the ROM it built the session on, which [`check_rom`](@ref)
+compares with `params.rom_config_path` ([`AWETRIM_ROM`](@ref) unless set).
 """
 function opt_init(params::InitParams; url = AWETRIM_URL)
-    return as_init_reply(JSON3.read(post("/init", params; url), Dict{String,Any}))
+    reply = as_init_reply(JSON3.read(post("/init", params; url), Dict{String,Any}))
+    check_rom(reply, params)
+    return reply
+end
+
+"""
+    check_rom(reply::InitReply, params::InitParams)
+
+Throw unless the server built the session on the ROM `params` asked for: `reply.rom_config`
+must name the file `params.rom_config_path` names.
+"""
+function check_rom(reply::InitReply, params::InitParams)
+    used = something(reply.rom_config, "(not reported)")
+    basename(used) == basename(params.rom_config_path) ||
+        error("AWETrim built the session on $used, not on $(params.rom_config_path).")
+    return nothing
 end
 
 """
@@ -1318,21 +1434,34 @@ function optimizer_session(tos, inflow, replay_paths, log_name)
 end
 
 """
+    StartupNoPath(msg)
+
+Thrown by [`solve_startup`](@ref) when no seed of the startup solve gave a path: every one sent
+was answered 422, or every one within reach is cached as bad. `msg` says what to try.
+"""
+struct StartupNoPath <: Exception
+    msg::String
+end
+Base.showerror(io::IO, e::StartupNoPath) = print(io, e.msg)
+
+"""
     solve_startup(tos, make_params, solve, start_params, el_center_seed_base, l_set, winch, inflow;
                   failure_file = OPT_FAILURE_CACHE)
         -> (; opt_result, opt_seed_trajectory, start_params, el_center_seed, startup_seed_offset,
              guess_az, guess_el)
 
 The STARTUP solve, from `start_params` (the shipped guess) and, if the optimizer answers
-422 (no path from that seed), from the seeds of `startup_retry_el_offsets` in order, then
-whole degrees walked outward. `make_params(el_center)` builds the `/init` request seeded at
-that centre elevation and `solve(params)` sends it, returning `(result, seed_trajectory)`.
+422 (no path from that seed), from the guess sizes of `startup_retry_guess_sizes` at the same
+centre, then the seeds of `startup_retry_el_offsets` in order, then whole degrees walked
+outward. `make_params(el_center, size)` builds the `/init` request seeded at that centre
+elevation with guess `size = (guess_a, guess_b)` (`nothing` = the shipped size), and
+`solve(params)` sends it, returning `(result, seed_trajectory)`.
 A request the failure cache (`failure_file`, read and written only under `tos.server.opt_failure_cache`)
 records as bad is skipped and costs no retry; a 422 is recorded.
 
-Returns the result with the request and seed that produced it. Throws when every seed
-within reach is cached as bad, or when the optimizer answered 422 to all that were sent;
-both messages say what to try.
+Returns the result with the request and seed that produced it. Throws a
+[`StartupNoPath`](@ref) when every seed within reach is cached as bad, or when the optimizer
+answered 422 to all that were sent; both messages say what to try.
 """
 function solve_startup(tos, make_params, solve, start_params, el_center_seed_base, l_set, winch,
                        inflow; failure_file::AbstractString = OPT_FAILURE_CACHE)
@@ -1345,12 +1474,16 @@ function solve_startup(tos, make_params, solve, start_params, el_center_seed_bas
     last_422 = nothing
     cached_msg = nothing
     sent = 0
-    budget = 1 + length(tos.guess.startup_retry_el_offsets)
+    sizes = [(s[1], s[2]) for s in tos.guess.startup_retry_guess_sizes]
+    offsets = startup_seed_offsets(tos.guess.startup_retry_el_offsets)
+    seeds = [[(0.0, nothing)]; [(0.0, s) for s in sizes]; [(o, nothing) for o in offsets[2:end]]]
+    budget = 1 + length(sizes) + length(tos.guess.startup_retry_el_offsets)
     sent_offsets = Float64[]
-    for offset in startup_seed_offsets(tos.guess.startup_retry_el_offsets)
+    sent_sizes = Tuple{Float64, Float64}[]
+    for (offset, size) in seeds
         sent < budget || break
         el_center = el_center_seed_base + offset
-        params = offset == 0 ? start_params : make_params(el_center)
+        params = offset == 0 && isnothing(size) ? start_params : make_params(el_center, size)
         cached = tos.server.opt_failure_cache ? opt_failed_before(params; file = failure_file) : nothing
         if !isnothing(cached)
             cached_msg = @sprintf("This exact request failed before (%s, recorded \
@@ -1363,8 +1496,12 @@ function solve_startup(tos, make_params, solve, start_params, el_center_seed_bas
             continue
         end
         sent += 1
-        push!(sent_offsets, offset)
-        sent == 1 ||
+        isnothing(size) ? push!(sent_offsets, offset) : push!(sent_sizes, size)
+        sent == 1 || isnothing(size) ||
+            @warn @sprintf("Startup solve at %.0f° failed: retry %d/%d from a %.0f° x %.0f° \
+                            guess (startup_retry_guess_sizes).",
+                           el_center_seed_base, sent - 1, budget - 1, size...)
+        sent == 1 || !isnothing(size) ||
             @warn @sprintf("Startup solve at %.0f° failed: retry %d/%d from a \
                             guess centred at %.0f° (%+.1f°, startup_retry_el_offsets%s).",
                            el_center_seed_base, sent - 1, budget - 1, el_center, offset,
@@ -1384,11 +1521,11 @@ function solve_startup(tos, make_params, solve, start_params, el_center_seed_bas
         end
     end
     isnothing(opt_result) && isnothing(last_422) &&
-        error(cached_msg * "\n\nEvery seed within reach of startup_retry_el_offsets \
+        throw(StartupNoPath(cached_msg * "\n\nEvery seed within reach of startup_retry_el_offsets \
               is cached as bad. Retry them with `clear_opt_failures()`, drop an entry \
               from $failure_file, or set opt_failure_cache: false in \
-              data/traj_opt.yaml.")
-    isnothing(opt_result) && error("""
+              data/traj_opt.yaml."))
+    isnothing(opt_result) && throw(StartupNoPath("""
           The optimizer returned no path: $(String(copy(last_422.response.body)))
 
           Three candidates, most likely first:
@@ -1397,7 +1534,8 @@ function solve_startup(tos, make_params, solve, start_params, el_center_seed_bas
               $(tos.guess.guess_b)°, guess_el_center = $(el_center_seed_base)° of \
               data/traj_opt.yaml$(length(sent_offsets) == 1 ? "" :
               ", and the retry seeds at offsets $(sent_offsets[2:end])° " *
-              "failed too (startup_retry_el_offsets)"), which seeds the \
+              "failed too (startup_retry_el_offsets)")$(isempty(sent_sizes) ? "" :
+              ", and so did the guess sizes $(sent_sizes)° (startup_retry_guess_sizes)"), which seeds the \
               request and nothing else — widening or raising it changes the \
               guess, not the flown path. Measured at 150 m and 6 m/s: 20°/11° \
               at 18° does not converge, 30°/12° and 20°/11°-at-26° do.
@@ -1406,7 +1544,7 @@ function solve_startup(tos, make_params, solve, start_params, el_center_seed_bas
               m/s against $(inflow.wind_speed) m/s of wind at 6 m.
             * these conditions genuinely have no solution.
 
-          `bin/run_server log` carries the solver's own output.""")
+          `bin/run_server log` carries the solver's own output."""))
     return (; opt_result, opt_seed_trajectory, start_params, el_center_seed, startup_seed_offset,
             guess_az, guess_el)
 end
@@ -1454,7 +1592,9 @@ function free_speed_reference(tos, wc, inflow, guess_az, guess_el, lengths;
                                 trajectory = Trajectory(collect(guess_az), collect(guess_el)),
                                 input_depower = depower_seed(tos, inflow.wind_speed),
                                 reg_weight = REG_WEIGHT,
-                                min_turn_radius, pattern_limits)
+                                min_turn_radius, pattern_limits,
+                                system_config_path = awetrim_system_config(),
+                                angle_of_attack_limits = aoa_limits(tos))
             reply = chain_init(ref_chain, params)
             result = chain_step(ref_chain, StepParams(l, ref_winch, reply.trajectory))
             if !isnothing(result.metrics)

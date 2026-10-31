@@ -12,7 +12,7 @@ copy, the optimizer's caches are off, and rejected curves go to a temporary fold
 
 using Test
 using RobustKiteControllers
-import RobustKiteControllers: GUI_STATE_FILE_OVERRIDE, FAILED_TRAJECTORY_DIR, setup_run, merge_into!,
+import RobustKiteControllers: GUI_STATE_FILE_OVERRIDE, FAILED_TRAJECTORY_DIR, setup_with_startup, merge_into!,
     solve_startup_path!, log_startup_reply, log_lobe_lift, adopt_startup_path!, finish_startup!,
     capture_startup_geometry!, startup_feasibility, init_phase5_and_controller!, init_loop_state!,
     startup_params, startup_solve, write_run_done, step_commands!, record_step!, check_overspeed,
@@ -41,14 +41,14 @@ stand_in_model(project, project_set, fcs, wpc, sim_time; turbulence, set_overrid
     (; dt = 1 / project_set.sample_freq, sys_state = (; l_tether = Float32[project_set.l_tether]))
 
 """
-    fly_startup(; tos, wind, path_for, fail_warm) -> (; setup, st, err, paths, log, saved)
+    fly_startup(; tos, wind, path_for, fail_warm, fail) -> (; setup, st, err, paths, log, saved)
 
 The script's startup against a fake server whose replies carry `path_for(power)`, the server's
 power counting 1000 W per converged step; `fail_warm` answers every warm `/step` (the retries) with
-a 422. `err` is what the startup threw, if anything; `saved` the curves it saved as rejected.
+a 422, as does every `/step` at a length in `fail`. `err` is what the startup threw, if anything; `saved` the curves it saved as rejected.
 """
 function fly_startup(; tos = Dict{Symbol, Any}(), wind = "default", path_for = p -> TIGHT,
-                     fail_warm = false)
+                     fail_warm = false, fail = Float64[])
     reply(l, p) = Dict("length" => l, "state" => "converged", "step_index" => 1,
         "trajectory" => Dict("azimuth" => path_for(p)[1], "elevation" => path_for(p)[2]),
         "depower" => Dict("mode" => "optimize", "value" => 1.53),
@@ -59,7 +59,7 @@ function fly_startup(; tos = Dict{Symbol, Any}(), wind = "default", path_for = p
                                     "distance_radial" => [150.0, 180.0]),
         "spline" => Dict("downloops" => !UP_LOOPS), "metrics" => Dict("avg_power_W" => 18000.0),
         "optimized_parameters" => Dict("input_depower" => 1.53))
-    fs = fake_server(; reply, table, fail_warm)
+    fs = fake_server(; reply, table, fail_warm, fail)
     gui = joinpath(mktempdir(), "gui.yaml")
     write(gui, replace(read(joinpath(rkc_data_path(), "gui.yaml.default"), String),
                        "system_fig8_200m.yaml" => PIPELINE_PROJECT,
@@ -76,10 +76,7 @@ function fly_startup(; tos = Dict{Symbol, Any}(), wind = "default", path_for = p
                                             :opt_success_cache => false, :opt_failure_cache => false),
                           tos)
         inputs = merge(run_input_defaults(), (; output_path = mktempdir(), tos_overrides = overrides))
-        setup = setup_run(inputs; init_model = stand_in_model)
-        st = RunState(; l_set = setup.l_set, opt_r_scale = setup.opt_r_scale,
-                      opt_r_min = setup.opt_r_min, depower_flown_opt = setup.fcs.course.depower_setpoint)
-        merge_into!(setup, solve_startup_path!(setup, st))
+        setup, st = setup_with_startup(inputs; init_model = stand_in_model)
         log_startup_reply(setup.fcs, setup.tos, st.opt_result, setup.opt_r_min)
         log_lobe_lift(setup.fcs, st.opt_result)
         st.c1_startup = setup.c1_at_depower(setup.fcs.course.depower_setpoint)
@@ -113,6 +110,7 @@ end
         init = r.log[2][2]
         @test init["length"] == 150.0 && init["min_turn_radius"] ≈ setup.opt_r_min
         @test !isnothing(init["pattern_limits"])
+        @test init["angle_of_attack_limits"] == Dict("min" => setup.tos.box.angle_of_attack_min)
         # The reply as installed, and nothing retried: the path clears the default gate.
         @test st.opt_result.metrics.avg_power_W == 18000.0 && st.opt_power_pred == 18000.0
         @test st.opt_paths_raw[1][1] ≈ TIGHT[1] && st.opt_downloops == !UP_LOOPS
@@ -123,6 +121,19 @@ end
         @test st.n_path == length(setup.fec.az_path) == length(st.raw_az)
         @test length(st.p5_history) == 1 && st.cc isa CourseController
         @test st.ccs.el_center == st.el_c_path
+    end
+
+    @testset "length_retry" begin
+        # No seed converges at 150 m: the run is set up again 20 m longer and solves there.
+        r = @test_logs (:warn, r"No startup path at 150.0 m: retry 1/1 at 170.0 m") match_mode = :any fly_startup(;
+            tos = Dict{Symbol, Any}(:startup_retry_length_steps => [20.0]), fail = [150.0])
+        @test isnothing(r.err)
+        @test r.setup.l_tether == 170.0 && r.setup.project_set.l_tether == 170.0
+        @test last(filter(x -> x[1] == "/init", r.log))[2]["length"] == 170.0
+        # Failing there too, the last StartupNoPath is rethrown.
+        r = fly_startup(; tos = Dict{Symbol, Any}(:startup_retry_length_steps => [20.0]),
+                        fail = [150.0, 170.0])
+        @test r.err isa RobustKiteControllers.StartupNoPath
     end
 
     @testset "wind_override" begin

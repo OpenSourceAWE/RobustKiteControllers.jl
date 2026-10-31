@@ -16,7 +16,7 @@ import RobustKiteControllers: InflowConditions, WinchParams, Trajectory, InitPar
     opt_failures, opt_failed_before, record_opt_failure!, clear_opt_failures, OptChain,
     _write_chain_entry, _chain_entry, _cached_422, chain_step, chain_status, chain_trajectory,
     record_opt_success!, solve_startup, as_step_reply, as_pattern_limits, guess_el_center_seed,
-    reelout_anchor_ratio, with_file_lock, HTTP, JSON3
+    reelout_anchor_ratio, with_file_lock, InitReply, check_rom, AWETRIM_ROM, HTTP, JSON3
 
 const INFLOW = InflowConditions(; wind_speed = 8.0, wind_direction = 270.0, profile_law = 3)
 const WINCH = WinchParams("reelout", 0.04, 700.0, 7200.0)
@@ -47,7 +47,7 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
         p = params()
         k = opt_request_key(p)
         # Pinned: a change here silently orphans every cached entry, so it must be deliberate.
-        @test k == "v4-2549e297cc9588f5"
+        @test k == "v4-6cb401c6baa240c0"
         @test opt_request_key(params(; name = "other run")) == k   # the label is not the problem
         p2 = InitParams(; name = "v4", length = 150.0, winch_params = WINCH,
                         inflow_conditions = INFLOW,
@@ -58,7 +58,10 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
         for q in (params(; length = 150.00027), params(; el_center = 26.0),
                   params(; min_turn_radius = 12.0), params(; depower = DepowerSpec()),
                   params(; input_depower = 1.7),
+                  params(; rom_config_path = "rom_config_aerostructural.yaml"),
                   params(; pattern_limits = PatternLimits(; azimuth_max = 28.0)),
+                  params(; angle_of_attack_limits =
+                               RobustKiteControllers.AngleOfAttackLimits(; min = -7.0)),
                   params(; winch_params = WinchParams(; mode = "reelout", k_v = 0.04,
                                                       f_min = 700.0, f_max = 7200.0,
                                                       softplus_beta = 0.03)),
@@ -67,6 +70,8 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
                                                                 profile_law = 3, z0 = 0.001)))
             @test opt_request_key(q) != k
         end
+        # Unset, the angle-of-attack limits are neither sent nor in the key.
+        @test !occursin("angle_of_attack", RobustKiteControllers.JSON3.write(p))
         @test opt_request_key(params(; length = -0.0)) != opt_request_key(params(; length = 0.0))
         @test opt_request_key(params(; length = NaN)) == opt_request_key(params(; length = NaN))
         # `symmetric` is left out of the key while unset, so the keys from before it stay valid.
@@ -146,7 +151,7 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
         oc = inited_chain(dir)
         sp = StepParams(150.0, WINCH)
         key = step_key(oc, sp)
-        @test key == "c2-645a7afd33368830"
+        @test key == "c2-efd9af2b6e454680"
         table = Dict{String, Any}("metrics" => Dict{String, Any}("avg_power_W" => 1000.0))
         _write_chain_entry(oc, Dict{String, Any}("key" => key, "status" => "converged",
                                                  "reply" => reply_dict(), "table" => table,
@@ -228,7 +233,7 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
                 center(p) in bad && throw(_cached_422(Dict("reason" => "test")))
                 return (; seed = center(p)), traj(center(p))
             end
-            r = solve_startup(tos, el -> params(; el_center = el), solve, params(), 25.0, 150.0,
+            r = solve_startup(tos, (el, _) -> params(; el_center = el), solve, params(), 25.0, 150.0,
                               WINCH, INFLOW; failure_file = file)
             return r, sent
         end
@@ -249,7 +254,7 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
         catch exc
             exc
         end
-        @test err isa ErrorException && occursin("The optimizer returned no path", err.msg)
+        @test err isa RobustKiteControllers.StartupNoPath && occursin("The optimizer returned no path", err.msg)
         @test length(opt_failures(; file)) == 3              # the budget: the guess and two retries
         # The same run again: the three are cached as bad and skipped without costing a retry,
         # so the seeds walk outward past the listed ones: offset +1 is the next one sent.
@@ -266,11 +271,25 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
         catch exc
             exc
         end
-        @test err isa ErrorException && occursin("cached as bad", err.msg)
+        @test err isa RobustKiteControllers.StartupNoPath && occursin("cached as bad", err.msg)
         # With the failure cache off it is neither read nor written.
         tosoff = TrajOptSettings(tos; opt_failure_cache = false)
         r, sent = run([25.0]; file, tos = tosoff)
         @test sent == [25.0, 24.0] && length(opt_failures(; file)) == 1
+
+        # A guess size of startup_retry_guess_sizes is tried at the same centre before the offsets.
+        toss = TrajOptSettings(tos; startup_retry_guess_sizes = [[40.0, 20.0]], opt_failure_cache = false)
+        widths = Float64[]
+        make = (el, sz) -> isnothing(sz) ? params(; el_center = el) :
+            params(; trajectory = Trajectory([0.0, sz[1], 0.0, -sz[1]], el .+ [0.0, 10.0, 0.0, -10.0]))
+        solve_w = function (p)
+            push!(widths, maximum(p.trajectory.azimuth))
+            maximum(p.trajectory.azimuth) < 15 && throw(_cached_422(Dict("reason" => "test")))
+            return (; seed = 0.0), traj()
+        end
+        r = @test_logs (:warn, r"40° x 20° guess") match_mode = :any solve_startup(toss, make,
+                solve_w, params(), 25.0, 150.0, WINCH, INFLOW; failure_file = file)
+        @test widths == [10.0, 40.0] && r.startup_seed_offset == 0.0
     end
 
     @testset "reply_parsing" begin
@@ -292,6 +311,16 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
         @test r.winch_params.f_max === 7200.0 && isnothing(r.winch_params.v_max)
         @test !r.winch_params.optimize_k_v && r.metrics.turn_radius_min_m == 12.48
         @test isnothing(as_pattern_limits(nothing))
+    end
+
+    @testset "rom_check" begin
+        p = params()
+        @test p.rom_config_path == AWETRIM_ROM
+        init_reply(rom) = InitReply("v4", 150.0, WINCH, INFLOW, traj(), 1.6, 1.0, true,
+                                    nothing, nothing, nothing, "initialized", 4, rom)
+        @test isnothing(check_rom(init_reply("/srv/data/LEI-V3-KITE/" * AWETRIM_ROM), p))
+        @test_throws ErrorException check_rom(init_reply("/srv/rom_config_aerostructural.yaml"), p)
+        @test_throws ErrorException check_rom(init_reply(nothing), p)  # a server that does not say
     end
 
     @testset "seed_and_anchor_ratio" begin

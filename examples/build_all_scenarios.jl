@@ -9,7 +9,8 @@ replace each scenario folder with the new run.
 For each site the wind speeds are read from the run summaries of its scenario
 folders; a `_2`, `_3`, ... repeat shares its wind speed with the unsuffixed
 folder, so each wind speed is flown once and replaces the unsuffixed folder
-only (the repeats are kept as they are). Each run is
+only (the repeats are kept as they are). A wind speed in `SKIP_WINDS` is not
+flown at all and its old scenario is kept. Each run is
 `simple_opt_reelout.jl` without plots, at the project and wind speed set in
 `data/gui.yaml`, and is moved in by `move_scenario.jl`, but only if it finished
 cleanly and passed all success criteria: otherwise the old scenario is kept and
@@ -43,6 +44,11 @@ const SITE_PROJECTS = [
     "maasvlakte" => "system_reelout_maasvlakte.yaml",
     "cabauw" => "system_reelout_cabauw.yaml",
 ]
+"Wind speeds [m/s] not flown at a site, e.g. because their scenario is already up to date"
+const SKIP_WINDS = Dict(
+    "maasvlakte" => [6.0, 8.0],
+    "cabauw" => Float64[],
+)
 output_dir = normpath(joinpath(@__DIR__, "..", "output"))
 run_done_file = joinpath(output_dir, "last_run_done.txt")
 progress_file = joinpath(output_dir, "build_all_scenarios.txt")
@@ -74,6 +80,10 @@ try
     for (site, project) in SITE_PROJECTS
         set_selected_project(project)
         for wind in scenario_winds(site)
+            if wind in get(SKIP_WINDS, site, Float64[])
+                log_line("$site $wind m/s: skipped (SKIP_WINDS), the old scenario is kept")
+                continue
+            end
             write_gui_field("wind_speed", wind)
             rm(run_done_file; force = true)
             t0 = time()

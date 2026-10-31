@@ -280,6 +280,11 @@ $(TYPEDFIELDS)
     low_wind_l_tether::Vector{Float64} = Float64[]
     "Startup guess's centre elevation [deg] (`guess_el_center`)"
     low_wind_guess_el_center::Vector{Float64} = Float64[]
+    "Wind speed [m/s] at `low_wind_height` at and above which reel-out starts at
+    `high_wind_l_tether`; `0.0` = off"
+    high_wind_speed::Float64 = 0.0
+    "Tether length [m] reel-out starts at from `high_wind_speed` on"
+    high_wind_l_tether::Float64 = 0.0
 end
 
 """

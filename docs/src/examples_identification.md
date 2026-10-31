@@ -165,3 +165,24 @@ cross-track error to a step of the attractor offset, at constant length and duri
 fitted with a second-order model and compared with the closed-loop model of
 `stability_opt_reelout.jl`. The measured part works on the saved tests in `data/steptest/`
 without flying. This analysis is work in progress.
+
+## Validation of the aerodynamics against AWETrim
+
+### [`validate_lift_drag.jl`](https://github.com/OpenSourceAWE/RobustKiteControllers.jl/blob/main/examples/validate_lift_drag.jl)
+Compares V3Kite's lift and drag with AWETrim's reduced-order model at the same power-tape length
+and apparent wind speed. The kite is parked at 150 m, and the ground wind is trimmed in each block
+until the apparent wind speed reaches its target. AWETrim's `POST /aero_forces` is then queried at
+the measured apparent wind speed, with the ROM every optimizer request uses (`AWETRIM_ROM`), at
+the ROM's own trim. Drag is compared as the wing's plus that of all bridle lines. The results go to `output/lift_drag_validation.json`; `fly = false` re-queries AWETrim
+without flying. About 3 minutes of simulation.
+
+### [`show_validation.jl`](https://github.com/OpenSourceAWE/RobustKiteControllers.jl/blob/main/examples/show_validation.jl)
+Shows the saved comparison as an HTML page in the default browser: the ROM against V3Kite, with the
+deviation in percent and the points outside the ROM's validity band marked, and V3Kite's drag split.
+
+### [`validate_masses.jl`](https://github.com/OpenSourceAWE/RobustKiteControllers.jl/blob/main/examples/validate_masses.jl)
+Prints the masses of V3Kite's structure (for the project selected in `data/gui.yaml`) next to
+those of AWETrim's system file: canopy, bridle (lines and point masses), KCU, the airborne
+total, the wing mass AWETrim's trim actually uses, and the tether mass per metre. Builds the
+structure without compiling a model and reads AWETrim's file with AWETrim's own Python, so it
+needs neither a running server nor a flight.

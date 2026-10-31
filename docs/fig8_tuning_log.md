@@ -6455,3 +6455,204 @@ With V3Kite's linear tape map and the new AWETrim the Maasvlakte scenarios flew 
 The -0.013 step gives d ln P / d rel_depower ~ -16. At -0.018: depower 0.268/0.268/0.287,
 measured 1962/11692/23126 W. The peak phase-4 force at 10 m/s rose from 7228 to 7735 N,
 above the 7200 N `f_high`; the other wind speeds were not re-flown.
+
+## 2026-10-28 — Lift/drag validation against the AWETrim ROM: not a valid comparison yet
+
+`examples/validate_lift_drag.jl` compares V3Kite's lift and drag with `rom_config_aerostructural2.yaml`
+at the same power tape and apparent wind speed. The two sides are NOT trimmed under the same
+condition, so the numbers are not a validation of either model:
+
+- V3Kite: parked at 150 m and 71-77° elevation, carrying its weight, the KCU's and the tether's;
+  angle of attack 3.5-4.8° (`span_mean_aoa`, the span mean of the VSM panels' geometric angle).
+- ROM: its gravity-free trim at the centre of the wind window, `alpha = atan2(C_D, C_L) - theta_b(u_p)`
+  (AWETrim `system/rom_forces.py`); angle of attack 1.1-2.2° (the wing angle of its identification).
+
+| tape | v_a | V3Kite L / D | ROM trim L / D | ΔL | ΔD |
+|--|--|--|--|--|--|
+| 1.60 m | 15.3 | 1637 / 240 | 1676 / 265 | +2 % | +11 % |
+| 1.60 m | 8.8 | 584 / 82 | 554 / 88 | -5 % | +7 % |
+| 1.76 m | 15.3 | 1358 / 226 | 1408 / 253 | +4 % | +12 % |
+| 1.76 m | 8.6 | 478 / 74 | 450 / 81 | -6 % | +9 % |
+
+V3Kite drag is the VSM wing plus all bridle lines, AWETrim's basis. Agreement within ±6 % in lift
+and 7-12 % in drag comes from two different flight states, so it says nothing yet. A valid
+comparison needs both models in the same trim condition: the same flight state (elevation,
+gravity, KCU and tether loads) or the same angle of attack under one definition.
+
+## 2026-10-28 — Depower seed 1.6 -> 1.5 m for `rom_config_aerostructural2.yaml`
+
+With the new ROM (Oriol's, fitted to V3Kite, valid from 1.35 m of tape) every startup solve at
+Maasvlakte 7 m/s failed, all four guess elevations. Replaying the exact startup request in AWETrim's
+`ReeloutSession` (no simulation) isolates the seed `input_depower`:
+
+| ROM | seed [m] | result |
+|--|--|--|
+| flight-corrected | 1.6 | converged, 1.628 m, 11.7 kW |
+| `rom_config_aerostructural.yaml` | 1.6 | converged, 1.329 m, 21.1 kW |
+| `rom_config_aerostructural2.yaml` | 1.6 | IPOPT stuck near 2.0 m, alpha below its 0° bound |
+| `rom_config_aerostructural2.yaml` | 1.5 | converged, 1.350 m, 17.8 kW |
+| `rom_config_aerostructural2.yaml` | 1.4 | converged, 1.350 m, 17.8 kW |
+
+From 1.6 m IPOPT walks to the depowered side, where this ROM's trim angle of attack (about 1.5°
+lower than the flight-corrected ROM's at the same tape) drops below the optimizer's 0° bound;
+relaxing that bound to -5° does not help. The optimum is at the bottom of the band, 1.35 m. Only
+7 m/s was checked; the seed ramp above 7 m/s (0.25 m per m/s) is unchanged and untested on this ROM.
+
+## 2026-10-28 — Startup on `rom_config_aerostructural2`: wider box, larger guess, size retries
+
+The scenario build with seed 1.5 m flew 4 and 7 m/s (all 10 criteria, power ratio 0.92 and 0.94,
+18.4 kW at 7 m/s) and failed the startup solve at Maasvlakte 3.5, 5, 6, 8 and 8.25 m/s. The exact
+startup requests, replayed in AWETrim's `ReeloutSession`:
+
+- seed 1.35-1.45 m, an alpha floor of -6° or a taller box alone: no change;
+- `gain_roll_steering` -0.376 -> -0.666 (the flight-corrected ROM's): all five converge. The new
+  ROM turns ~43 % less. That is physical for the geometry it was identified on (Bart's), not a
+  fitting error, so the requests have to fit a kite that turns less. Failures show steering
+  and its rate on their bounds, `s_dot` near 0 and alpha below 0°.
+- box 36° x 15° (half-spans) with a larger guess, seed 1.5 m:
+
+| guess | 5 | 6 | 7 | 8 | 8.25 m/s |
+|--|--|--|--|--|--|
+| 30 x 13 | fail | fail | OK | OK | OK |
+| 32 x 14 | OK | OK | fail | OK | OK |
+| 34 x 15 | OK | OK | OK | fail | OK |
+
+No single size covers all, so the guess is 32 x 14 and `startup_retry_guess_sizes` tries
+30 x 13 and 34 x 15 at the same centre before the elevation offsets. The seed ramp
+(`input_depower_per_wind` 0.25 -> 0) is gone: 8 m/s seeded at 1.75 m fails where 1.5 m converges.
+3.5 m/s (195 m tether) fails with every guess, seed and box tried. Only the startup requests
+were checked; the effect of the larger box on the flown runs is not.
+
+## 2026-10-30 — AWETrim flies V3Kite's bridle mass, 1.62 kg
+
+After AWETrim was merged up to its `main` (`feat/server-aero-forces` at `0947c52`) the scenario
+build failed the startup solve at Maasvlakte 3.5, 4, 5, 8.5, 9, 10 and 11 m/s; 4 and 5 m/s had
+flown on 2026-10-28 on the same commit (240de86) against the pre-merge AWETrim. AWETrim `aa25dfc`
+(2026-10-29) adds the bridle (2.58 kg, "lines + pulleys") to the point-mass wing: 10.99 ->
+13.58 kg, 22.0 kg airborne with the KCU. Replaying one failed 5 m/s request (default ROM)
+in-process: with the bridle mass the march stalls from node 20 of the guess (alpha 27-29°) and
+fails at node 25, IPOPT ends locally infeasible; with only the wing mass back at 11.0 kg it
+converges at 7.5 kW. At 10 m/s the mass costs a third of the predicted power (12.5 vs 17.9 kW).
+
+`examples/validate_masses.jl` puts V3Kite's structure next to AWETrim's file: canopy 10.99 kg
+(both), KCU 8.4 kg (both), bridle 1.62 kg in V3Kite (1.12 kg of lines at 724 kg/m³ plus five
+0.1 kg point masses) against 2.58 kg, so 21.0 kg airborne against 22.0 kg (19.4 kg before
+`aa25dfc`). Every `/init` now sends `system_config_path = awetrim_system_config()`, AWETrim's
+LEI-V3 file with the bridle mass set to `AWETRIM_BRIDLE_MASS` = 1.62 kg, written to
+`output/awetrim_system/` with the ROMs copied next to it. The file's content is part of the
+request key, so the cached solutions of the 2.58 kg kite are not replayed.
+
+With `rom_config_aerostructural2` the same replay did not separate the mass from the rest of
+the merge: 4 m/s converged before the merge and fails after it with either mass, 8.5 m/s the
+other way round, and 5 m/s at seed 1.5 m fails at node 0 in every version.
+
+Flown at 1.62 kg, Maasvlakte 5 m/s still failed every startup retry: the march broke at node
+28-30 of the guess. The replayed request (wing 12.62 kg) fails the same way with
+`turn_radius_headroom` 1.0 (8.98 m) and with no turn-radius limit, with seed 1.35 m, 3 or 5°
+lower, and 36 x 15; it converges with the canopy alone (10.99 kg, 6.3 kW), centred 3° higher
+(6.2 kW) or at 26 x 11 (5.9 kW). `startup_retry_guess_sizes` gains `[26, 11]`, and with it
+5 m/s flies: all 10 criteria, 6.1 kW measured, power ratio 0.99, 3 paths installed.
+
+## 2026-10-30 — `kv` 0.030 at 3-4 m/s: Maasvlakte 4 m/s flies with the 12.62 kg wing
+
+With the 1.62 kg bridle Maasvlakte 4 m/s (195 m) failed every startup retry, sizes and
+elevation offsets from -6 to +5° included. Its exact requests were recorded
+(`OPT_REQUEST_RECORD`) and replayed in AWETrim, which reproduces the failure and the failed
++3° retry. Converged: the wing at 10.99 kg (3.1 kW); the pattern box without `symmetric`
+AND without `climb_angle_max` (2.5 kW, 61 s laps; either one alone, any other single
+limit relaxed, or the full box restored after a relaxed solve all fail); and a softer winch,
+`k_v` 0.030 (2967 W) or 0.025 (3074 W). No help: guess +2/+3°, 26 x 11 at +3°, seed
+1.35 m, no turn-radius limit, `k_v` 0.050, `f_min` 400 or 1000 N, tether 150, 170 or 220 m.
+
+`kv` is a column of `winch_table.yaml` again (`winch_kv`): 0.030 at 3 and 4 m/s, 0.0408
+from 5 m/s up. Flown at 4 m/s: all 10 criteria, 3.1 kW measured, power ratio 0.99,
+3 paths installed, 1.41 m/s mean reel-out speed. 3 m/s (Cabauw) flies 0.030 untested.
+
+Maasvlakte 3.5 m/s (195 m) at `k_v` 0.030 failed every startup retry too. Its recorded
+request converges at `k_v` 0.019-0.022 (1.73-1.67 kW, also with the guess moved ±2°) and
+fails at 0.015, 0.017, 0.018, 0.023, 0.025 and 0.030, with the light wing as the only other
+converging variant (seed 1.35 m, +2° and the relaxed box fail). New 3.5 m/s row at `k_v`
+0.020, and 0.020 at 3 m/s so that `k_v` does not rise as the wind drops (3 m/s untested).
+Flown at 3.5 m/s: all 10 criteria, 1.9 kW measured, power ratio 1.02, 6 paths installed,
+0.9 m/s mean reel-out speed.
+
+## 2026-10-31 — `first_lap_force_frac` 0.93 -> 0.96: Maasvlakte 9 m/s with the 12.62 kg wing
+
+Maasvlakte 8.5 m/s flies with the 1.62 kg bridle unchanged (all 10 criteria, 19.2 kW, power
+ratio 0.91); 9 m/s failed every startup retry. Its recorded request, replayed in AWETrim,
+converges with the light wing (18.3 kW), without the pattern box, with `symmetric` off alone
+(17.4 kW, the climb limit alone does not help), or with the startup `f_max` (`f_high` x
+`first_lap_force_frac`, 6696 N) raised to 6900 N (17.1 kW), 7200 N (18.2 kW) or 7500 N
+(19.2 kW). No help: guess ±2°, 30 x 13, seed 1.75 m, `k_v` 0.036 or 0.045, no turn-radius
+limit. `first_lap_force_frac` 0.96 (6912 N), the smallest step that converges, keeps the box;
+it was lowered to 0.93 on 2026-09-24 because 9 m/s then crossed the 8400 N rating in lap 1.
+Flown at 9 m/s: all 10 criteria (max force included), 17.8 kW measured, power ratio 0.89,
+phase-4 peak 6893 N. The factor applies at every wind speed; 10 and 11 m/s are not yet flown
+with it.
+
+## 2026-10-31 — High-wind shape: no symmetry, no climb limit from 12.5 m/s aloft
+
+Maasvlakte 10 m/s (12.9 m/s at 100 m) failed every startup retry with the 1.62 kg bridle and
+`first_lap_force_frac` 0.96. Its recorded request converges with the light wing (17.1 kW),
+without the box (16.9 kW), or with `symmetric` off AND no `climb_angle_max` (17.7 kW); either
+alone, any other single box limit, `f_max` 7200 or 7500 N (also with `symmetric` off), `k_v`
+0.039 or 0.045, seed 1.75 or 2.0 m and the guess +2° all fail. New `pattern_shape_wind_ref`
+(12.5 m/s at `pattern_elevation_amplitude_max_wind_height`) with `pattern_symmetric_shape_high`
+false and `pattern_climb_angle_max_shape_high` 0 (off). Flown at 10 m/s: all 10 criteria,
+18.1 kW measured, power ratio 0.85, phase-4 peak 7008 N, cross-track RMS 0.82°; the four
+installed paths are centred -0.7° to +2.4° in azimuth. It also reaches Cabauw from 7 m/s
+(13.5 m/s aloft), not yet flown with it.
+
+## 2026-10-31 — High-wind start length: Maasvlakte 11 m/s starts at 180 m
+
+Maasvlakte 11 m/s (14.2 m/s at 100 m) failed every startup retry with the 1.62 kg bridle, the
+high-wind shape included. Its recorded request at 150 m fails without the box too, and with seed
+1.75 or 1.84 m (the light wing's optimum flies 1.84 m, far from the ROM's 2.25 m ceiling),
++3°, no turn-radius limit, `f_max` 7500 N, `k_v` 0.036 or 0.045; it converges with the light
+wing (14.8 kW) and at a longer start: 160 m (17.0 kW), 165, 170 and 180 m (18.4 kW). New
+`low_wind.high_wind_speed` (14.0 m/s at `low_wind_height`) and `high_wind_l_tether`. Flown at
+160 m the startup converged but failed the curvature gate (margin 0.79 against 0.82, all four
+radius retries 422); at 180 m: all 10 criteria, 17.8 kW measured, power ratio 0.82, phase-4
+peak 6720 N, cross-track RMS 0.78°. Cabauw from about 8 m/s is above 14 m/s aloft and starts at
+180 m too, not yet flown.
+
+## 2026-10-31 — Cabauw with the 1.62 kg bridle; `reel_in_beta` 20 -> 22
+
+Rebuilt with every 2026-10-30/31 change: Cabauw 5, 5.5, 5.75, 6, 6.25 and 7 m/s pass all 10
+criteria (19.7-21.8 kW). Cabauw 3 m/s threw before flying: `k_v` 0.020 at `f_low` 350 N needs
+`reel_in_beta * k_v * sqrt(f_low) >= 8`, i.e. `reel_in_beta` >= 21.4 (Maasvlakte 3.5 m/s has
+`f_low` 525 N and passed at 20). At 22: all 10 criteria, 4.5 kW measured, power ratio 0.99 (the
+2026-10-26 scenario flew 2.0 kW at 0.71).
+
+Still failing, from recorded requests replayed in-process:
+- 4 m/s (7.7 m/s at 100 m): the 150 m startup fails at every seed, guess size, box, radius limit
+  and `k_v` 0.030-0.0408; 165, 170 and 175 m converge, 155, 160 and 180 m do not.
+- 8 m/s (15.5 aloft) starts at 180 m from `high_wind_speed`, converges, and fails laps >= 2.5
+  (17.9 kW). A 150 m start fails, 160 and 170 m converge.
+- 9 and 10 m/s (17.4 and 19.3 aloft) fail at 120-220 m, without the box or radius limit, with
+  the light wing, the old ROM, `f_max` 6000-15000 N, `k_v` 0.048, seed 1.8-2.2 m and +5 to +15°.
+  The 9 m/s request converges at 7 and 8 m/s and fails at 8.5, and converges at 9 m/s with
+  `alpha` 0.10 or 0.15 instead of 0.234: the wind aloft is past what the optimizer solves. The
+  2026-10-26 scenarios at 9 and 10 m/s predate the bridle mass and `rom_config_aerostructural2`.
+
+## 2026-10-31 — Startup length retry; high-wind start 180 -> 170 m
+
+New `startup_retry_length_steps` (`traj_opt.yaml`, [20.0]): when no seed converges, the run is set
+up again with the tether that much longer (`setup_with_startup`, through the new `l_tether` run
+input). Cabauw 4 m/s fails every seed at 150 m and retries at 170 m: all 10 criteria, 11.6 kW.
+`high_wind_l_tether` 180 -> 170 m: Maasvlakte 11 m/s flies at 170 m with a starting margin of
+0.83 (gate 0.82): all 10 criteria, 17.5 kW. Cabauw 8 m/s converges at 170 m and still fails
+laps >= 2.5 (2.0 laps, 18.0 kW): its laps take 23.7-30.1 s against 12.2-19.8 s in the 2026-10-26
+scenario, so its patterns are larger, not its start longer.
+
+## 2026-10-31 — Angle-of-attack floor -7° (the ROM's validity)
+
+AWETrim `eeeefa8` (2026-10-28) bounds the trim angle of attack to 0-14° unless a request says
+otherwise. At Cabauw 9 m/s (17.4 m/s at 100 m) the failed iterate sits on that 0° floor with the
+depower on its 2.25 m ceiling and the trim residual infeasible; the recorded 180 m request
+converges with the floor at -3, -6 or -10° (18.7 kW predicted, depower 2.0 m, alpha -0.5 to
++0.4°). `rom_config_aerostructural2` is valid from -7°, so new `box.angle_of_attack_min` -7.0, sent
+with every `/init` as `angle_of_attack_limits`. Cabauw 10 m/s converges with it only without the
+pattern box (alpha -0.9 to +0.1°, depower 2.08 m); dropping any single box row is not enough.
+Flown: Cabauw 8 m/s at 170 m, all 10 criteria, 17.9 kW. Cabauw 9 m/s found no path at 170 m,
+retried at 190 m and failed laps >= 2.5 (16.3 kW). Cabauw 10 m/s found none at 170 or 190 m.

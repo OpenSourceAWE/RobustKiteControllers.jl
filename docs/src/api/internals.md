@@ -22,6 +22,8 @@ RobustKiteControllers.gate_candidate
 RobustKiteControllers.wants_challenge
 RobustKiteControllers.set_yaml_fields!
 RobustKiteControllers.depower_command!
+RobustKiteControllers.AngleOfAttackLimits
+RobustKiteControllers.aoa_limits
 RobustKiteControllers.depower_seed
 RobustKiteControllers.depower_spec
 RobustKiteControllers.set_depower_conversion!
@@ -32,6 +34,8 @@ RobustKiteControllers.min_turn_radius_request
 RobustKiteControllers.request_constraints
 RobustKiteControllers.request_depower_estimate
 RobustKiteControllers.setup_run
+RobustKiteControllers.setup_with_startup
+RobustKiteControllers.StartupNoPath
 RobustKiteControllers.solve_startup_path!
 RobustKiteControllers.startup_feasibility
 RobustKiteControllers.steering_command!
