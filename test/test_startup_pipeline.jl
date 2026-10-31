@@ -110,6 +110,7 @@ end
         init = r.log[2][2]
         @test init["length"] == 150.0 && init["min_turn_radius"] ≈ setup.opt_r_min
         @test !isnothing(init["pattern_limits"])
+        @test init["angle_of_attack_limits"] == Dict("min" => setup.tos.box.angle_of_attack_min)
         # The reply as installed, and nothing retried: the path clears the default gate.
         @test st.opt_result.metrics.avg_power_W == 18000.0 && st.opt_power_pred == 18000.0
         @test st.opt_paths_raw[1][1] ≈ TIGHT[1] && st.opt_downloops == !UP_LOOPS

@@ -74,6 +74,8 @@ traj_opt:
                                   # 10 m/s (12.9 there) converges only without both (2026-10-31); 9 m/s is 11.6 [m/s]
     pattern_symmetric_shape_high: false     # pattern_symmetric at/above pattern_shape_wind_ref
     pattern_climb_angle_max_shape_high: 0.0 # pattern_climb_angle_max at/above pattern_shape_wind_ref; 0 is off [°]
+    angle_of_attack_min: -7.0  # lowest trim angle of attack, the ROM's validity; .nan = the server's 0°, under which
+                               # Cabauw 9 m/s (trims at -0.5 to +0.4°) has no solution (2026-10-31) [°]
 
   gates:  # every returned path, at startup and after a re-optimization
     min_feasibility_margin: 0.82  # curvature gate AND request (as min_turn_radius); 0.0 = off; an 8 m/s number [-]

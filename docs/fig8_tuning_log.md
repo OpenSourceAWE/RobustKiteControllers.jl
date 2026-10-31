@@ -6644,3 +6644,15 @@ input). Cabauw 4 m/s fails every seed at 150 m and retries at 170 m: all 10 crit
 0.83 (gate 0.82): all 10 criteria, 17.5 kW. Cabauw 8 m/s converges at 170 m and still fails
 laps >= 2.5 (2.0 laps, 18.0 kW): its laps take 23.7-30.1 s against 12.2-19.8 s in the 2026-10-26
 scenario, so its patterns are larger, not its start longer.
+
+## 2026-10-31 — Angle-of-attack floor -7° (the ROM's validity)
+
+AWETrim `eeeefa8` (2026-10-28) bounds the trim angle of attack to 0-14° unless a request says
+otherwise. At Cabauw 9 m/s (17.4 m/s at 100 m) the failed iterate sits on that 0° floor with the
+depower on its 2.25 m ceiling and the trim residual infeasible; the recorded 180 m request
+converges with the floor at -3, -6 or -10° (18.7 kW predicted, depower 2.0 m, alpha -0.5 to
++0.4°). `rom_config_aerostructural2` is valid from -7°, so new `box.angle_of_attack_min` -7.0, sent
+with every `/init` as `angle_of_attack_limits`. Cabauw 10 m/s converges with it only without the
+pattern box (alpha -0.9 to +0.1°, depower 2.08 m); dropping any single box row is not enough.
+Flown: Cabauw 8 m/s at 170 m, all 10 criteria, 17.9 kW. Cabauw 9 m/s found no path at 170 m,
+retried at 190 m and failed laps >= 2.5 (16.3 kW). Cabauw 10 m/s found none at 170 or 190 m.

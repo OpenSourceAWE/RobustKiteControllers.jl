@@ -126,6 +126,8 @@ $(TYPEDFIELDS)
     pattern_symmetric_shape_high::Bool = false
     "`pattern_climb_angle_max` at and above `pattern_shape_wind_ref` [deg]; `0.0` = off"
     pattern_climb_angle_max_shape_high = 0.0
+    "Lowest angle of attack the optimizer may trim at, in the ROM's own angle [deg]; `NaN` = the server's 0°"
+    angle_of_attack_min = NaN
 end
 
 """

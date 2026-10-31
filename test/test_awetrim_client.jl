@@ -60,6 +60,8 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
                   params(; input_depower = 1.7),
                   params(; rom_config_path = "rom_config_aerostructural.yaml"),
                   params(; pattern_limits = PatternLimits(; azimuth_max = 28.0)),
+                  params(; angle_of_attack_limits =
+                               RobustKiteControllers.AngleOfAttackLimits(; min = -7.0)),
                   params(; winch_params = WinchParams(; mode = "reelout", k_v = 0.04,
                                                       f_min = 700.0, f_max = 7200.0,
                                                       softplus_beta = 0.03)),
@@ -68,6 +70,8 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
                                                                 profile_law = 3, z0 = 0.001)))
             @test opt_request_key(q) != k
         end
+        # Unset, the angle-of-attack limits are neither sent nor in the key.
+        @test !occursin("angle_of_attack", RobustKiteControllers.JSON3.write(p))
         @test opt_request_key(params(; length = -0.0)) != opt_request_key(params(; length = 0.0))
         @test opt_request_key(params(; length = NaN)) == opt_request_key(params(; length = NaN))
         # `symmetric` is left out of the key while unset, so the keys from before it stay valid.

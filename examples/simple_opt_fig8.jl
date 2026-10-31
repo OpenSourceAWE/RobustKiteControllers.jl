@@ -96,7 +96,8 @@ include(joinpath(@__DIR__, "model_setup.jl"))
 # The optimizer client, part of the package but not exported (src/awetrim_client.jl), and
 # `HTTP.StatusError` for a 422.
 using HTTP
-using RobustKiteControllers: OPT_NAME, GUESS_POINTS, RESAMPLE_POINTS, REG_WEIGHT, awetrim_system_config
+using RobustKiteControllers: OPT_NAME, GUESS_POINTS, RESAMPLE_POINTS, REG_WEIGHT, awetrim_system_config,
+    aoa_limits
 using RobustKiteControllers: Trajectory, InitParams, StepParams, ensure_server, opt_init,
     opt_step, opt_trajectory, inflow_from_settings, winch_from_wc, cap_wind_speed,
     depower_seed, elevation_min_request, min_turn_radius_request, pattern_limits_from,
@@ -228,7 +229,8 @@ opt_reply = opt_init(InitParams(; name = OPT_NAME, length = l0,
                                 reg_weight = REG_WEIGHT,
                                 min_turn_radius = opt_r_min,
                                 pattern_limits = opt_box,
-                                system_config_path = awetrim_system_config());
+                                system_config_path = awetrim_system_config(),
+                                angle_of_attack_limits = aoa_limits(tos));
                      url = tos.server.base_url)
 # No automatic retry with a different guess, deliberately: a guess that merely
 # converges is not the same answer, and picking one silently would hide which

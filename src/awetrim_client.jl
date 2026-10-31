@@ -161,6 +161,26 @@ struct Trajectory
     elevation::Vector{Float64}  # [deg], from the ground plane
 end
 
+"""
+    AngleOfAttackLimits(; min = nothing, max = nothing)
+
+Bounds on the angle of attack the optimizer may trim at [deg], in the ROM's own angle; an
+omitted side keeps the server's default (0° and 14°). Sent with `/init`, kept by the session.
+"""
+Base.@kwdef struct AngleOfAttackLimits
+    min::Union{Float64, Nothing} = nothing
+    max::Union{Float64, Nothing} = nothing
+end
+
+"""
+    aoa_limits(tos) -> Union{AngleOfAttackLimits, Nothing}
+
+The angle-of-attack limits a request carries: `tos.box.angle_of_attack_min` as the floor,
+`nothing` (the server's default) when it is `NaN`.
+"""
+aoa_limits(tos) = isnan(tos.box.angle_of_attack_min) ? nothing :
+                  AngleOfAttackLimits(; min = tos.box.angle_of_attack_min)
+
 Base.@kwdef struct InitParams
     name::String
     length::Float64                    # initial length of the tether
@@ -178,6 +198,7 @@ Base.@kwdef struct InitParams
     pattern_limits::Union{PatternLimits, Nothing} = nothing
     rom_config_path::String = AWETRIM_ROM
     system_config_path::Union{String, Nothing} = nothing   # `nothing`: the server's own file
+    angle_of_attack_limits::Union{AngleOfAttackLimits, Nothing} = nothing
 end
 
 Base.@kwdef struct StepParams
@@ -260,6 +281,9 @@ StructTypes.StructType(::Type{DepowerSpec}) = StructTypes.Struct()
 StructTypes.StructType(::Type{PatternLimits}) = StructTypes.Struct()
 # Left out of the JSON while unset: a server older than the field rejects the key even as null.
 StructTypes.omitempties(::Type{PatternLimits}) = (:climb_angle_max,)
+StructTypes.StructType(::Type{AngleOfAttackLimits}) = StructTypes.Struct()
+StructTypes.omitempties(::Type{AngleOfAttackLimits}) = (:min, :max)
+StructTypes.omitempties(::Type{InitParams}) = (:angle_of_attack_limits,)
 
 # ---------------------------------------------------------------------------
 # Failed-request cache
@@ -317,9 +341,11 @@ upgrade. `"v4-"` retires the `hash`-based `"v3-"` keys.
 """
 function opt_request_key(p::InitParams)
     fields = Tuple(_key_fields(getfield(p, f)) for f in fieldnames(InitParams)
-                   if !(f in (:name, :system_config_path)))
+                   if !(f in (:name, :system_config_path, :angle_of_attack_limits)))
     isnothing(p.system_config_path) ||
         (fields = (fields..., stable_hash(read(p.system_config_path, String))))
+    isnothing(p.angle_of_attack_limits) ||
+        (fields = (fields..., _key_fields(p.angle_of_attack_limits)))
     return "v4-" * stable_hash(fields)
 end
 
@@ -339,7 +365,7 @@ stable_hash(x) = bytes2hex(sha256(repr(x)))[1:16]
 # Hashing the structs themselves would not do: the default `hash` of a struct
 # holding a `Vector` goes by the vector's identity, not its contents, so two
 # equal requests would never share a key.
-_key_fields(x::Union{WinchParams, InflowConditions, Trajectory, DepowerSpec, PatternLimits,
+_key_fields(x::Union{WinchParams, InflowConditions, Trajectory, DepowerSpec, PatternLimits, AngleOfAttackLimits,
                      StepParams}) =
     Tuple(_key_fields(getfield(x, f)) for f in fieldnames(typeof(x)))
 # `symmetric` and `climb_angle_max` came last; each is left out while off, so the keys cached
@@ -1567,7 +1593,8 @@ function free_speed_reference(tos, wc, inflow, guess_az, guess_el, lengths;
                                 input_depower = depower_seed(tos, inflow.wind_speed),
                                 reg_weight = REG_WEIGHT,
                                 min_turn_radius, pattern_limits,
-                                system_config_path = awetrim_system_config())
+                                system_config_path = awetrim_system_config(),
+                                angle_of_attack_limits = aoa_limits(tos))
             reply = chain_init(ref_chain, params)
             result = chain_step(ref_chain, StepParams(l, ref_winch, reply.trajectory))
             if !isnothing(result.metrics)

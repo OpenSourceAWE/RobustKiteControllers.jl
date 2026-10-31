@@ -318,7 +318,8 @@ function request_reopt!(st::RunState, setup, t, phase, l_now)
                                           depower = depower_spec(tos),
                                           min_turn_radius = st.opt_r_min,
                                           pattern_limits = st.opt_box_now,
-                                          system_config_path = awetrim_system_config())
+                                          system_config_path = awetrim_system_config(),
+                                          angle_of_attack_limits = aoa_limits(tos))
                 # A known failure is served by `opt_chain`, not skipped here: skipping would leave
                 # the chain on the warm lineage, and every later step would miss the cache.
                 reopt_reply = chain_init(opt_chain, reopt_params)
@@ -598,7 +599,8 @@ function solve_cold!(st::RunState, setup, l_now, el_seed, box)
         depower = depower_spec(tos),
         min_turn_radius = st.opt_r_min,
         pattern_limits = box,
-        system_config_path = awetrim_system_config())
+        system_config_path = awetrim_system_config(),
+        angle_of_attack_limits = aoa_limits(tos))
     reply = chain_init(opt_chain, params)
     chain_step(opt_chain, StepParams(opt_length(l_now), winch_reopt, reply.trajectory);
                wait = false)

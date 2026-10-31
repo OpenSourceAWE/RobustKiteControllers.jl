@@ -22,6 +22,8 @@ RobustKiteControllers.gate_candidate
 RobustKiteControllers.wants_challenge
 RobustKiteControllers.set_yaml_fields!
 RobustKiteControllers.depower_command!
+RobustKiteControllers.AngleOfAttackLimits
+RobustKiteControllers.aoa_limits
 RobustKiteControllers.depower_seed
 RobustKiteControllers.depower_spec
 RobustKiteControllers.set_depower_conversion!

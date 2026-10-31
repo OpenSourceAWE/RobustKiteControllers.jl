@@ -1080,6 +1080,9 @@ end
         @test tos.guess.guess_b == 14.0
         @test tos.guess.startup_retry_guess_sizes == [[30.0, 13.0], [34.0, 15.0], [26.0, 11.0]]
         @test tos.guess.startup_retry_length_steps == [20.0]
+        @test tos.box.angle_of_attack_min == -7.0
+        @test RobustKiteControllers.aoa_limits(tos).min == -7.0
+        @test isnothing(RobustKiteControllers.aoa_limits(TrajOptSettings(tos; angle_of_attack_min = NaN)))
         # 30 since 2026-08-20 (ad08158), not the 26 that was the narrower basin in
         # tether LENGTH before it: raising wc_settings' f_high 7600 -> 8000 moves the
         # request's f_max with it, and at 150.0 m / 9 m/s the 22 seed throws IPOPT's
