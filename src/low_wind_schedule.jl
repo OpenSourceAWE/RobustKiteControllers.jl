@@ -43,7 +43,8 @@ low_wind_reference(fcs::FC_Settings, project_set) =
     apply_low_wind_schedule!(fcs, tos, project_set; keep = ()) -> NamedTuple
 
 Overwrite the starting tether length `project_set.l_tether` and `tos.guess.guess_el_center` with
-[`low_wind_schedule`](@ref) at [`low_wind_reference`](@ref). A name in `keep` (e.g. the
+[`low_wind_schedule`](@ref) at [`low_wind_reference`](@ref), and the starting length alone with
+`fcs.low_wind.high_wind_l_tether` at and above `fcs.low_wind.high_wind_speed`. A name in `keep` (e.g. the
 keys of a run's overrides) is left alone; `tos = nothing` skips the guess, for a caller
 without the optimizer's settings. Call it once, after the wind-speed override and
 before anything is built from the settings. Returns `(; v_ref, values)`, `values`
@@ -63,8 +64,17 @@ function apply_low_wind_schedule!(fcs::FC_Settings, tos, project_set; keep = ())
     end
     v_ref = low_wind_reference(fcs, project_set)
     values = low_wind_schedule(fcs, v_ref)
-    isnothing(values) && return (; v_ref, values)
     keep = Symbol.(collect(keep))
+    if isnothing(values)
+        lw.high_wind_speed > 0 && v_ref >= lw.high_wind_speed || return (; v_ref, values)
+        lw.high_wind_l_tether > 0 ||
+            error("low_wind: high_wind_l_tether must be > 0 when high_wind_speed is set.")
+        :l_tether in keep || :l_tethers in keep || (project_set.l_tether = lw.high_wind_l_tether)
+        @info @sprintf("High wind at %.2f m/s (%.0f m): l_tether = %.1f m%s.", v_ref,
+                       lw.low_wind_height, project_set.l_tether,
+                       isempty(keep) ? "" : ", overrides kept: " * join(keep, ", "))
+        return (; v_ref, values = (; l_tether = project_set.l_tether))
+    end
     :l_tether in keep || :l_tethers in keep || (project_set.l_tether = values.l_tether)
     isnothing(tos) || :guess_el_center in keep || (tos.guess.guess_el_center = values.guess_el_center)
     @info @sprintf("Low-wind schedule at %.2f m/s (%.0f m): l_tether = %.1f m, guess_el_center = %.2f°%s.",

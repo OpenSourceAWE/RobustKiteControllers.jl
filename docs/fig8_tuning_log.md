@@ -6602,3 +6602,16 @@ false and `pattern_climb_angle_max_shape_high` 0 (off). Flown at 10 m/s: all 10 
 18.1 kW measured, power ratio 0.85, phase-4 peak 7008 N, cross-track RMS 0.82°; the four
 installed paths are centred -0.7° to +2.4° in azimuth. It also reaches Cabauw from 7 m/s
 (13.5 m/s aloft), not yet flown with it.
+
+## 2026-10-31 — High-wind start length: Maasvlakte 11 m/s starts at 180 m
+
+Maasvlakte 11 m/s (14.2 m/s at 100 m) failed every startup retry with the 1.62 kg bridle, the
+high-wind shape included. Its recorded request at 150 m fails without the box too, and with seed
+1.75 or 1.84 m (the light wing's optimum flies 1.84 m, far from the ROM's 2.25 m ceiling),
++3°, no turn-radius limit, `f_max` 7500 N, `k_v` 0.036 or 0.045; it converges with the light
+wing (14.8 kW) and at a longer start: 160 m (17.0 kW), 165, 170 and 180 m (18.4 kW). New
+`low_wind.high_wind_speed` (14.0 m/s at `low_wind_height`) and `high_wind_l_tether`. Flown at
+160 m the startup converged but failed the curvature gate (margin 0.79 against 0.82, all four
+radius retries 422); at 180 m: all 10 criteria, 17.8 kW measured, power ratio 0.82, phase-4
+peak 6720 N, cross-track RMS 0.78°. Cabauw from about 8 m/s is above 14 m/s aloft and starts at
+180 m too, not yet flown.

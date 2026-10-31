@@ -1166,6 +1166,7 @@ end
         @test fro.low_wind.low_wind_l_tether[end] == 150.0
         @test fro.low_wind.low_wind_guess_el_center[end] == TrajOptSettings("traj_opt.yaml").guess.guess_el_center
         @test low_wind_schedule(fro, 4.51).guess_el_center == 25.0
+        @test fro.low_wind.high_wind_speed == 14.0 && fro.low_wind.high_wind_l_tether == 180.0
         tos = TrajOptSettings("traj_opt.yaml")
         # Below the struct's 1.0, but no longer for the old reason: the request is
         # scaled from this number and the optimizer honours it, so what the gate
