@@ -6615,3 +6615,22 @@ wing (14.8 kW) and at a longer start: 160 m (17.0 kW), 165, 170 and 180 m (18.4 
 radius retries 422); at 180 m: all 10 criteria, 17.8 kW measured, power ratio 0.82, phase-4
 peak 6720 N, cross-track RMS 0.78°. Cabauw from about 8 m/s is above 14 m/s aloft and starts at
 180 m too, not yet flown.
+
+## 2026-10-31 — Cabauw with the 1.62 kg bridle; `reel_in_beta` 20 -> 22
+
+Rebuilt with every 2026-10-30/31 change: Cabauw 5, 5.5, 5.75, 6, 6.25 and 7 m/s pass all 10
+criteria (19.7-21.8 kW). Cabauw 3 m/s threw before flying: `k_v` 0.020 at `f_low` 350 N needs
+`reel_in_beta * k_v * sqrt(f_low) >= 8`, i.e. `reel_in_beta` >= 21.4 (Maasvlakte 3.5 m/s has
+`f_low` 525 N and passed at 20). At 22: all 10 criteria, 4.5 kW measured, power ratio 0.99 (the
+2026-10-26 scenario flew 2.0 kW at 0.71).
+
+Still failing, from recorded requests replayed in-process:
+- 4 m/s (7.7 m/s at 100 m): the 150 m startup fails at every seed, guess size, box, radius limit
+  and `k_v` 0.030-0.0408; 165, 170 and 175 m converge, 155, 160 and 180 m do not.
+- 8 m/s (15.5 aloft) starts at 180 m from `high_wind_speed`, converges, and fails laps >= 2.5
+  (17.9 kW). A 150 m start fails, 160 and 170 m converge.
+- 9 and 10 m/s (17.4 and 19.3 aloft) fail at 120-220 m, without the box or radius limit, with
+  the light wing, the old ROM, `f_max` 6000-15000 N, `k_v` 0.048, seed 1.8-2.2 m and +5 to +15°.
+  The 9 m/s request converges at 7 and 8 m/s and fails at 8.5, and converges at 9 m/s with
+  `alpha` 0.10 or 0.15 instead of 0.234: the wind aloft is past what the optimizer solves. The
+  2026-10-26 scenarios at 9 and 10 m/s predate the bridle mass and `rom_config_aerostructural2`.
