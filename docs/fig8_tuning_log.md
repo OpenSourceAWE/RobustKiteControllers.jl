@@ -6589,3 +6589,16 @@ it was lowered to 0.93 on 2026-09-24 because 9 m/s then crossed the 8400 N ratin
 Flown at 9 m/s: all 10 criteria (max force included), 17.8 kW measured, power ratio 0.89,
 phase-4 peak 6893 N. The factor applies at every wind speed; 10 and 11 m/s are not yet flown
 with it.
+
+## 2026-10-31 — High-wind shape: no symmetry, no climb limit from 12.5 m/s aloft
+
+Maasvlakte 10 m/s (12.9 m/s at 100 m) failed every startup retry with the 1.62 kg bridle and
+`first_lap_force_frac` 0.96. Its recorded request converges with the light wing (17.1 kW),
+without the box (16.9 kW), or with `symmetric` off AND no `climb_angle_max` (17.7 kW); either
+alone, any other single box limit, `f_max` 7200 or 7500 N (also with `symmetric` off), `k_v`
+0.039 or 0.045, seed 1.75 or 2.0 m and the guess +2° all fail. New `pattern_shape_wind_ref`
+(12.5 m/s at `pattern_elevation_amplitude_max_wind_height`) with `pattern_symmetric_shape_high`
+false and `pattern_climb_angle_max_shape_high` 0 (off). Flown at 10 m/s: all 10 criteria,
+18.1 kW measured, power ratio 0.85, phase-4 peak 7008 N, cross-track RMS 0.82°; the four
+installed paths are centred -0.7° to +2.4° in azimuth. It also reaches Cabauw from 7 m/s
+(13.5 m/s aloft), not yet flown with it.

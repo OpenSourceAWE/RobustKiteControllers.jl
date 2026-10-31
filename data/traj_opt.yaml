@@ -66,6 +66,11 @@ traj_opt:
     pattern_symmetric: true       # mirror-symmetric figure about azimuth 0; the solve is multi-modal and
                                   # otherwise lands lopsided (Cabauw 2026-09-25: centre -2.3°, lobes 214/147 points)
     pattern_climb_angle_max: 45.0 # steepest climb of the path in the az/el plane; descending is free; 0 is off [°]
+    pattern_shape_wind_ref: 12.5  # wind at pattern_elevation_amplitude_max_wind_height at/above which the two
+                                  # _shape_high values below apply; 0 = off. With the 12.62 kg wing Maasvlakte
+                                  # 10 m/s (12.9 there) converges only without both (2026-10-31); 9 m/s is 11.6 [m/s]
+    pattern_symmetric_shape_high: false     # pattern_symmetric at/above pattern_shape_wind_ref
+    pattern_climb_angle_max_shape_high: 0.0 # pattern_climb_angle_max at/above pattern_shape_wind_ref; 0 is off [°]
 
   gates:  # every returned path, at startup and after a re-optimization
     min_feasibility_margin: 0.82  # curvature gate AND request (as min_turn_radius); 0.0 = off; an 8 m/s number [-]

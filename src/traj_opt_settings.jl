@@ -116,6 +116,14 @@ $(TYPEDFIELDS)
     pattern_symmetric::Bool = false
     "Steepest climb angle of the optimized path [deg]; `0.0` = off"
     pattern_climb_angle_max = 0.0
+    "Wind speed aloft (at `pattern_elevation_amplitude_max_wind_height`) at and above which the
+    `_shape_high` values below replace `pattern_symmetric` and `pattern_climb_angle_max` [m/s];
+    `0.0` = off"
+    pattern_shape_wind_ref = 0.0
+    "`pattern_symmetric` at and above `pattern_shape_wind_ref`"
+    pattern_symmetric_shape_high::Bool = false
+    "`pattern_climb_angle_max` at and above `pattern_shape_wind_ref` [deg]; `0.0` = off"
+    pattern_climb_angle_max_shape_high = 0.0
 end
 
 """
@@ -470,6 +478,11 @@ function TrajOptSettings(filename::String; path = rkc_data_path())
         error("size_box_growth must be 0 (off) or >= 1, got $(tos.reopt.size_box_growth).")
     0 <= tos.box.pattern_climb_angle_max < 90 ||
         error("pattern_climb_angle_max must be in [0, 90), got $(tos.box.pattern_climb_angle_max).")
+    0 <= tos.box.pattern_climb_angle_max_shape_high < 90 ||
+        error("pattern_climb_angle_max_shape_high must be in [0, 90), got \
+               $(tos.box.pattern_climb_angle_max_shape_high).")
+    tos.box.pattern_shape_wind_ref >= 0 ||
+        error("pattern_shape_wind_ref must be >= 0, got $(tos.box.pattern_shape_wind_ref).")
     tos.reopt.challenge_growth == 0 || tos.reopt.challenge_growth >= 1 ||
         error("challenge_growth must be 0 (off) or >= 1, got $(tos.reopt.challenge_growth).")
     tos.guess.guess_a > 0 && tos.guess.guess_b > 0 ||
