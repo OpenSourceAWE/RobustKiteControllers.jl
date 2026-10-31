@@ -1079,6 +1079,7 @@ end
         @test tos.guess.guess_a == 32.0
         @test tos.guess.guess_b == 14.0
         @test tos.guess.startup_retry_guess_sizes == [[30.0, 13.0], [34.0, 15.0], [26.0, 11.0]]
+        @test tos.guess.startup_retry_length_steps == [20.0]
         # 30 since 2026-08-20 (ad08158), not the 26 that was the narrower basin in
         # tether LENGTH before it: raising wc_settings' f_high 7600 -> 8000 moves the
         # request's f_max with it, and at 150.0 m / 9 m/s the 22 seed throws IPOPT's
@@ -1166,7 +1167,7 @@ end
         @test fro.low_wind.low_wind_l_tether[end] == 150.0
         @test fro.low_wind.low_wind_guess_el_center[end] == TrajOptSettings("traj_opt.yaml").guess.guess_el_center
         @test low_wind_schedule(fro, 4.51).guess_el_center == 25.0
-        @test fro.low_wind.high_wind_speed == 14.0 && fro.low_wind.high_wind_l_tether == 180.0
+        @test fro.low_wind.high_wind_speed == 14.0 && fro.low_wind.high_wind_l_tether == 170.0
         tos = TrajOptSettings("traj_opt.yaml")
         # Below the struct's 1.0, but no longer for the old reason: the request is
         # scaled from this number and the optimizer honours it, so what the gate

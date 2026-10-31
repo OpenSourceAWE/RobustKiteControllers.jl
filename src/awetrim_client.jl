@@ -1408,6 +1408,17 @@ function optimizer_session(tos, inflow, replay_paths, log_name)
 end
 
 """
+    StartupNoPath(msg)
+
+Thrown by [`solve_startup`](@ref) when no seed of the startup solve gave a path: every one sent
+was answered 422, or every one within reach is cached as bad. `msg` says what to try.
+"""
+struct StartupNoPath <: Exception
+    msg::String
+end
+Base.showerror(io::IO, e::StartupNoPath) = print(io, e.msg)
+
+"""
     solve_startup(tos, make_params, solve, start_params, el_center_seed_base, l_set, winch, inflow;
                   failure_file = OPT_FAILURE_CACHE)
         -> (; opt_result, opt_seed_trajectory, start_params, el_center_seed, startup_seed_offset,
@@ -1422,9 +1433,9 @@ elevation with guess `size = (guess_a, guess_b)` (`nothing` = the shipped size),
 A request the failure cache (`failure_file`, read and written only under `tos.server.opt_failure_cache`)
 records as bad is skipped and costs no retry; a 422 is recorded.
 
-Returns the result with the request and seed that produced it. Throws when every seed
-within reach is cached as bad, or when the optimizer answered 422 to all that were sent;
-both messages say what to try.
+Returns the result with the request and seed that produced it. Throws a
+[`StartupNoPath`](@ref) when every seed within reach is cached as bad, or when the optimizer
+answered 422 to all that were sent; both messages say what to try.
 """
 function solve_startup(tos, make_params, solve, start_params, el_center_seed_base, l_set, winch,
                        inflow; failure_file::AbstractString = OPT_FAILURE_CACHE)
@@ -1484,11 +1495,11 @@ function solve_startup(tos, make_params, solve, start_params, el_center_seed_bas
         end
     end
     isnothing(opt_result) && isnothing(last_422) &&
-        error(cached_msg * "\n\nEvery seed within reach of startup_retry_el_offsets \
+        throw(StartupNoPath(cached_msg * "\n\nEvery seed within reach of startup_retry_el_offsets \
               is cached as bad. Retry them with `clear_opt_failures()`, drop an entry \
               from $failure_file, or set opt_failure_cache: false in \
-              data/traj_opt.yaml.")
-    isnothing(opt_result) && error("""
+              data/traj_opt.yaml."))
+    isnothing(opt_result) && throw(StartupNoPath("""
           The optimizer returned no path: $(String(copy(last_422.response.body)))
 
           Three candidates, most likely first:
@@ -1507,7 +1518,7 @@ function solve_startup(tos, make_params, solve, start_params, el_center_seed_bas
               m/s against $(inflow.wind_speed) m/s of wind at 6 m.
             * these conditions genuinely have no solution.
 
-          `bin/run_server log` carries the solver's own output.""")
+          `bin/run_server log` carries the solver's own output."""))
     return (; opt_result, opt_seed_trajectory, start_params, el_center_seed, startup_seed_offset,
             guess_az, guess_el)
 end

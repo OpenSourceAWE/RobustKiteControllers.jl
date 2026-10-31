@@ -6634,3 +6634,13 @@ Still failing, from recorded requests replayed in-process:
   The 9 m/s request converges at 7 and 8 m/s and fails at 8.5, and converges at 9 m/s with
   `alpha` 0.10 or 0.15 instead of 0.234: the wind aloft is past what the optimizer solves. The
   2026-10-26 scenarios at 9 and 10 m/s predate the bridle mass and `rom_config_aerostructural2`.
+
+## 2026-10-31 — Startup length retry; high-wind start 180 -> 170 m
+
+New `startup_retry_length_steps` (`traj_opt.yaml`, [20.0]): when no seed converges, the run is set
+up again with the tether that much longer (`setup_with_startup`, through the new `l_tether` run
+input). Cabauw 4 m/s fails every seed at 150 m and retries at 170 m: all 10 criteria, 11.6 kW.
+`high_wind_l_tether` 180 -> 170 m: Maasvlakte 11 m/s flies at 170 m with a starting margin of
+0.83 (gate 0.82): all 10 criteria, 17.5 kW. Cabauw 8 m/s converges at 170 m and still fails
+laps >= 2.5 (2.0 laps, 18.0 kW): its laps take 23.7-30.1 s against 12.2-19.8 s in the 2026-10-26
+scenario, so its patterns are larger, not its start longer.

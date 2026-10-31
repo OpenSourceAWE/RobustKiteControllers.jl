@@ -51,6 +51,8 @@ $(TYPEDFIELDS)
     startup_retry_el_offsets::Vector{Float64} = Float64[]
     "Guess sizes `[guess_a, guess_b]` tried in order when the startup solve fails, before the offsets [deg]"
     startup_retry_guess_sizes::Vector{Vector{Float64}} = Vector{Float64}[]
+    "Lengths added to the starting tether, in order, when no seed converges; the model is set up again at each [m]"
+    startup_retry_length_steps::Vector{Float64} = Float64[]
 end
 
 """

@@ -80,6 +80,38 @@ function solve_startup_path!(setup, st::RunState)
 end
 
 """
+    setup_with_startup(inputs; init_model) -> (setup, st)
+
+[`setup_run`](@ref) and the startup solve ([`solve_startup_path!`](@ref)), with the `RunState`
+`st` it wrote into. When no seed gives a path ([`StartupNoPath`](@ref)), the steps of
+`startup_retry_length_steps` are added in turn to the length the run started at, and the
+model is set up again there through the `l_tether` run input. Other errors, and the last
+`StartupNoPath`, are rethrown.
+"""
+function setup_with_startup(inputs; init_model)
+    l_start = nothing
+    for k in 0:typemax(Int)
+        setup = setup_run(inputs; init_model)
+        st = RunState(; l_set = setup.l_set, opt_r_scale = setup.opt_r_scale,
+                      opt_r_min = setup.opt_r_min,
+                      depower_flown_opt = setup.fcs.course.depower_setpoint)
+        l_start = something(l_start, setup.l_tether)
+        steps = setup.tos.guess.startup_retry_length_steps
+        try
+            merge_into!(setup, solve_startup_path!(setup, st))
+            return setup, st
+        catch exc
+            exc isa StartupNoPath && k < length(steps) || rethrow()
+            l_next = l_start + steps[k + 1]
+            @warn @sprintf("No startup path at %.1f m: retry %d/%d at %.1f m \
+                            (startup_retry_length_steps).", setup.l_tether, k + 1,
+                           length(steps), l_next)
+            inputs = merge(inputs, (; l_tether = l_next))
+        end
+    end
+end
+
+"""
     log_startup_reply(fcs, tos, opt_result, opt_r_min)
 
 Say what the startup reply was optimized at: its depower converted to the V3Kite `rel_depower` flying at

@@ -23,6 +23,9 @@ traj_opt:
     # 8.25 and 34x15 at 5, 6, 7, 8.25 m/s; no single size covers all; 26x11 at 5 m/s with the
     # 12.62 kg wing (bridle 1.62 kg, 2026-10-30) where all the others fail [deg]
     startup_retry_guess_sizes: [[30.0, 13.0], [34.0, 15.0], [26.0, 11.0]]
+    # Added to the starting tether when every seed above fails, and the model set up again there.
+    # Cabauw 4 m/s (2026-10-31) has no startup solution at 150, 155 or 160 m and converges at 165-175 m [m]
+    startup_retry_length_steps: [20.0]
 
   seed:  # depower seed of the solve, ramped with the wind
     input_depower:     1.5   # depower SEED in metres of tape (server bounds 1.1-2.3), not depower_setpoint [m]

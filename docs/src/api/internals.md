@@ -32,6 +32,8 @@ RobustKiteControllers.min_turn_radius_request
 RobustKiteControllers.request_constraints
 RobustKiteControllers.request_depower_estimate
 RobustKiteControllers.setup_run
+RobustKiteControllers.setup_with_startup
+RobustKiteControllers.StartupNoPath
 RobustKiteControllers.solve_startup_path!
 RobustKiteControllers.startup_feasibility
 RobustKiteControllers.steering_command!

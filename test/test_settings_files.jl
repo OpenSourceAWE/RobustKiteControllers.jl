@@ -115,9 +115,9 @@ const GUI_DEFAULT = read(joinpath(rkc_data_path(), "gui.yaml.default"), String)
             (; wc, wpc, dt0) = build_winch(project, set, FC_Settings(; compliance = 0.0))
             @test dt0 == 1 / set.sample_freq && wc.dt == dt0
             # The wind-dependent tables override the file's flat values.
-            # The start length: 150 m at 10 m/s (12.9 m/s aloft), 180 m from 14 m/s aloft (11 m/s).
+            # The start length: 150 m at 10 m/s (12.9 m/s aloft), 170 m from 14 m/s aloft (11 m/s).
             fro = FC_Settings(fc_settings(project))
-            for (v, l) in ((10.0, 150.0), (11.0, 180.0))
+            for (v, l) in ((10.0, 150.0), (11.0, 170.0))
                 s = KiteUtils.Settings(project)
                 RobustKiteControllers.apply_windspeed_override!(s, v)
                 apply_low_wind_schedule!(fro, nothing, s)

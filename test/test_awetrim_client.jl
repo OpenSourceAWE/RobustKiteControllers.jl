@@ -250,7 +250,7 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
         catch exc
             exc
         end
-        @test err isa ErrorException && occursin("The optimizer returned no path", err.msg)
+        @test err isa RobustKiteControllers.StartupNoPath && occursin("The optimizer returned no path", err.msg)
         @test length(opt_failures(; file)) == 3              # the budget: the guess and two retries
         # The same run again: the three are cached as bad and skipped without costing a retry,
         # so the seeds walk outward past the listed ones: offset +1 is the next one sent.
@@ -267,7 +267,7 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
         catch exc
             exc
         end
-        @test err isa ErrorException && occursin("cached as bad", err.msg)
+        @test err isa RobustKiteControllers.StartupNoPath && occursin("cached as bad", err.msg)
         # With the failure cache off it is neither read nor written.
         tosoff = TrajOptSettings(tos; opt_failure_cache = false)
         r, sent = run([25.0]; file, tos = tosoff)

@@ -127,8 +127,8 @@ fc_settings:
     # With the 12.62 kg wing the Maasvlakte 11 m/s (14.2 at 100 m) startup has no solution at 150 m
     # and converges from 160 m up (2026-10-31); 10 m/s (12.9) flies at 150 m.
     high_wind_speed:          14.0   # Wind speed at low_wind_height from which reel-out starts at the length below; 0 = off [m/s]
-    high_wind_l_tether:       180.0  # Tether length reel-out starts at from high_wind_speed on; 160 converged but
-                                     # failed the curvature gate at margin 0.79 (2026-10-31) [m]
+    high_wind_l_tether:       170.0  # Tether length reel-out starts at from high_wind_speed on; 160 failed the curvature
+                                     # gate at Maasvlakte 11 m/s, 180 laps >= 2.5 at Cabauw 8 m/s (2026-10-31) [m]
 
   run:  # simulation conditions and pass criteria
     vsm_interval:       5        # Steps between VSM aero updates, 1 = tightest; at 10 the identification flights sink at depower 0.375 (2026-10-02) [-]
