@@ -46,7 +46,7 @@ const SITE_PROJECTS = [
 ]
 "Wind speeds [m/s] not flown at a site, e.g. because their scenario is already up to date"
 const SKIP_WINDS = Dict(
-    "maasvlakte" => [6.0, 8.0],
+    "maasvlakte" => [],
     "cabauw" => Float64[],
 )
 output_dir = normpath(joinpath(@__DIR__, "..", "output"))
