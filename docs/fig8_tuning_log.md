@@ -6671,3 +6671,14 @@ Flown: both converge and track, but their 30-32 s laps from 170 and 180 m hold 2
 2.5; 150 and 160 m have no startup solution. New `run.min_laps_high` 2.0 from
 `min_laps_high_wind` 16.5 m/s at `low_wind_height`. Cabauw 9 m/s: all 10 criteria, 15.0 kW,
 power ratio 0.76, peak 6543 N. Cabauw 10 m/s: all 10 criteria, 15.2 kW, ratio 0.77, peak 6566 N.
+
+## 2026-11-01 — A cached startup seed uses up its retry
+
+Rerunning Cabauw 10 m/s sent seven new startup requests at 170 m, all 422 (~35 s each, ~4 min
+per run): the seven from the first run were skipped as cached, but since 2026-09-19 a skip cost
+no retry, so the budget was spent on seeds walked outward (31, 27, 33, 26, 34, 25, 35°) and the
+next rerun would have walked further, out to ±10°. 170 m has no path at that wind (see the
+2026-11-01 high-wind box entry), so the walk could only lose time. A cached seed now uses up its
+place in `startup_retry_guess_sizes`/`startup_retry_el_offsets`: a rerun skips what failed
+before and moves on to the next length at once. The outward walk (`startup_seed_offsets`) is
+gone; widen the listed seeds to try more.

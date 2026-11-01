@@ -256,10 +256,20 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
         end
         @test err isa RobustKiteControllers.StartupNoPath && occursin("The optimizer returned no path", err.msg)
         @test length(opt_failures(; file)) == 3              # the budget: the guess and two retries
-        # The same run again: the three are cached as bad and skipped without costing a retry,
-        # so the seeds walk outward past the listed ones: offset +1 is the next one sent.
-        r, sent = run([25.0, 24.0, 27.0]; file)
-        @test sent == [26.0] && r.startup_seed_offset == 1.0
+        # The same run again: the three are cached as bad and skipped, each using up its place,
+        # so nothing is sent and the error says why.
+        err = try
+            run([25.0, 24.0, 27.0]; file)
+            nothing
+        catch exc
+            exc
+        end
+        @test err isa RobustKiteControllers.StartupNoPath && occursin("cached as bad", err.msg)
+        # Only the shipped guess cached: it is skipped and the first listed seed is sent.
+        file = joinpath(mktempdir(), "failures.yaml")
+        record_opt_failure!(params(), "422 from /step"; file)
+        r, sent = run([25.0]; file)
+        @test sent == [24.0] && r.startup_seed_offset == -1.0
 
         # No retry seeds and the only one cached as bad: nothing is sent, and the error says why.
         tos0 = TrajOptSettings(tos; startup_retry_el_offsets = Float64[])

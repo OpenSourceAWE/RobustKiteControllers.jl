@@ -1452,20 +1452,19 @@ Base.showerror(io::IO, e::StartupNoPath) = print(io, e.msg)
 
 The STARTUP solve, from `start_params` (the shipped guess) and, if the optimizer answers
 422 (no path from that seed), from the guess sizes of `startup_retry_guess_sizes` at the same
-centre, then the seeds of `startup_retry_el_offsets` in order, then whole degrees walked
-outward. `make_params(el_center, size)` builds the `/init` request seeded at that centre
+centre, then the seeds of `startup_retry_el_offsets` in order. `make_params(el_center, size)` builds the `/init` request seeded at that centre
 elevation with guess `size = (guess_a, guess_b)` (`nothing` = the shipped size), and
 `solve(params)` sends it, returning `(result, seed_trajectory)`.
 A request the failure cache (`failure_file`, read and written only under `tos.server.opt_failure_cache`)
-records as bad is skipped and costs no retry; a 422 is recorded.
+records as bad is skipped, but still uses up its place in that list, so a rerun of the same
+run skips what failed before instead of sending new seeds; a 422 is recorded.
 
 Returns the result with the request and seed that produced it. Throws a
-[`StartupNoPath`](@ref) when every seed within reach is cached as bad, or when the optimizer
+[`StartupNoPath`](@ref) when every seed is cached as bad, or when the optimizer
 answered 422 to all that were sent; both messages say what to try.
 """
 function solve_startup(tos, make_params, solve, start_params, el_center_seed_base, l_set, winch,
                        inflow; failure_file::AbstractString = OPT_FAILURE_CACHE)
-    # A 422 is retried from `startup_retry_el_offsets` in order; cached failures are skipped and cost no retry.
     opt_result = nothing
     opt_seed_trajectory = nothing
     el_center_seed = el_center_seed_base
@@ -1473,15 +1472,11 @@ function solve_startup(tos, make_params, solve, start_params, el_center_seed_bas
     guess_az = guess_el = nothing
     last_422 = nothing
     cached_msg = nothing
-    sent = 0
     sizes = [(s[1], s[2]) for s in tos.guess.startup_retry_guess_sizes]
-    offsets = startup_seed_offsets(tos.guess.startup_retry_el_offsets)
-    seeds = [[(0.0, nothing)]; [(0.0, s) for s in sizes]; [(o, nothing) for o in offsets[2:end]]]
-    budget = 1 + length(sizes) + length(tos.guess.startup_retry_el_offsets)
-    sent_offsets = Float64[]
-    sent_sizes = Tuple{Float64, Float64}[]
-    for (offset, size) in seeds
-        sent < budget || break
+    seeds = [[(0.0, nothing)]; [(0.0, s) for s in sizes];
+             [(o, nothing) for o in tos.guess.startup_retry_el_offsets]]
+    budget = length(seeds)
+    for (i, (offset, size)) in enumerate(seeds)
         el_center = el_center_seed_base + offset
         params = offset == 0 && isnothing(size) ? start_params : make_params(el_center, size)
         cached = tos.server.opt_failure_cache ? opt_failed_before(params; file = failure_file) : nothing
@@ -1495,18 +1490,14 @@ function solve_startup(tos, make_params, solve, start_params, el_center_seed_bas
             @warn cached_msg
             continue
         end
-        sent += 1
-        isnothing(size) ? push!(sent_offsets, offset) : push!(sent_sizes, size)
-        sent == 1 || isnothing(size) ||
+        i == 1 || isnothing(size) ||
             @warn @sprintf("Startup solve at %.0f° failed: retry %d/%d from a %.0f° x %.0f° \
                             guess (startup_retry_guess_sizes).",
-                           el_center_seed_base, sent - 1, budget - 1, size...)
-        sent == 1 || !isnothing(size) ||
+                           el_center_seed_base, i - 1, budget - 1, size...)
+        i == 1 || !isnothing(size) ||
             @warn @sprintf("Startup solve at %.0f° failed: retry %d/%d from a \
-                            guess centred at %.0f° (%+.1f°, startup_retry_el_offsets%s).",
-                           el_center_seed_base, sent - 1, budget - 1, el_center, offset,
-                           offset in tos.guess.startup_retry_el_offsets ? "" :
-                               " walked outward past the listed seeds")
+                            guess centred at %.0f° (%+.1f°, startup_retry_el_offsets).",
+                           el_center_seed_base, i - 1, budget - 1, el_center, offset)
         try
             opt_result, opt_seed_trajectory = solve(params)
             start_params = params
@@ -1521,8 +1512,8 @@ function solve_startup(tos, make_params, solve, start_params, el_center_seed_bas
         end
     end
     isnothing(opt_result) && isnothing(last_422) &&
-        throw(StartupNoPath(cached_msg * "\n\nEvery seed within reach of startup_retry_el_offsets \
-              is cached as bad. Retry them with `clear_opt_failures()`, drop an entry \
+        throw(StartupNoPath(cached_msg * "\n\nEvery seed of startup_retry_guess_sizes and \
+              startup_retry_el_offsets is cached as bad. Retry them with `clear_opt_failures()`, drop an entry \
               from $failure_file, or set opt_failure_cache: false in \
               data/traj_opt.yaml."))
     isnothing(opt_result) && throw(StartupNoPath("""
@@ -1532,10 +1523,10 @@ function solve_startup(tos, make_params, solve, start_params, el_center_seed_bas
             * the INITIAL GUESS is too far from the optimum for IPOPT to reach \
               it. Here that is guess_a = $(tos.guess.guess_a)°, guess_b = \
               $(tos.guess.guess_b)°, guess_el_center = $(el_center_seed_base)° of \
-              data/traj_opt.yaml$(length(sent_offsets) == 1 ? "" :
-              ", and the retry seeds at offsets $(sent_offsets[2:end])° " *
-              "failed too (startup_retry_el_offsets)")$(isempty(sent_sizes) ? "" :
-              ", and so did the guess sizes $(sent_sizes)° (startup_retry_guess_sizes)"), which seeds the \
+              data/traj_opt.yaml$(isempty(tos.guess.startup_retry_el_offsets) ? "" :
+              ", and the retry seeds at offsets $(tos.guess.startup_retry_el_offsets)° " *
+              "failed too (startup_retry_el_offsets)")$(isempty(sizes) ? "" :
+              ", and so did the guess sizes $(sizes)° (startup_retry_guess_sizes)"), which seeds the \
               request and nothing else — widening or raising it changes the \
               guess, not the flown path. Measured at 150 m and 6 m/s: 20°/11° \
               at 18° does not converge, 30°/12° and 20°/11°-at-26° do.
