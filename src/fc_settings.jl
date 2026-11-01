@@ -318,6 +318,12 @@ $(TYPEDFIELDS)
     min_elevation = 10.0
     "Min. size, fraction of `f8_a` (per side), `f8_b` (span)"
     min_span_frac = 0.7
+    "Laps criterion: figure-eight laps the scored window must hold"
+    min_laps = 2.5
+    "Laps criterion at and above `min_laps_high_wind`"
+    min_laps_high = 2.5
+    "Wind speed at `low_wind.low_wind_height` from which `min_laps_high` applies [m/s]; `0.0` = off"
+    min_laps_high_wind = 0.0
 end
 
 # The field list is written out rather than `$(TYPEDFIELDS)`, so that each type links to

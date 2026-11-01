@@ -123,6 +123,14 @@ const GUI_DEFAULT = read(joinpath(rkc_data_path(), "gui.yaml.default"), String)
                 apply_low_wind_schedule!(fro, nothing, s)
                 @test s.l_tether == l
             end
+            # The laps criterion: 2.0 from 16.5 m/s aloft (Cabauw 9 m/s is 17.4), 2.5 below (8 m/s, 15.5).
+            cab = project_file("system_reelout_cabauw.yaml")
+            fcab = FC_Settings(fc_settings(cab))
+            for (v, n) in ((8.0, 2.5), (9.0, 2.0))
+                s = KiteUtils.Settings(cab)
+                RobustKiteControllers.apply_windspeed_override!(s, v)
+                @test RobustKiteControllers.min_laps_at(fcab, s) == n
+            end
             @test wc.f_low == winch_f_low(set.v_wind; project)
             @test wc.kv == winch_kv(set.v_wind; project)
             @test wc.force_limit == winch_force_limit(set.v_wind; project)

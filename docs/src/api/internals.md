@@ -30,6 +30,7 @@ RobustKiteControllers.set_depower_conversion!
 RobustKiteControllers.awetrim_depower_to_v3kite
 RobustKiteControllers.elevation_min_request
 RobustKiteControllers.merge_into!
+RobustKiteControllers.min_laps_at
 RobustKiteControllers.min_turn_radius_request
 RobustKiteControllers.request_constraints
 RobustKiteControllers.request_depower_estimate

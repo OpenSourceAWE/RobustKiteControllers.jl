@@ -6656,3 +6656,18 @@ with every `/init` as `angle_of_attack_limits`. Cabauw 10 m/s converges with it 
 pattern box (alpha -0.9 to +0.1°, depower 2.08 m); dropping any single box row is not enough.
 Flown: Cabauw 8 m/s at 170 m, all 10 criteria, 17.9 kW. Cabauw 9 m/s found no path at 170 m,
 retried at 190 m and failed laps >= 2.5 (16.3 kW). Cabauw 10 m/s found none at 170 or 190 m.
+
+## 2026-11-01 — Cabauw 9 and 10 m/s: high-wind box 45° x 20° from 16.5 m/s aloft, 2.0 laps
+
+With the -7° floor, recorded requests replayed in-process: Cabauw 9 m/s (17.4 m/s at 100 m) at
+180 m converges at a 21.5 m turn radius only without the box, and 10 m/s (19.3) only with the
+elevation half-span cap 15 -> 20° together with the azimuth cap 36 -> 45° (or no elevation floor).
+Under the 45°/20° box with the floor kept, 9 m/s converges at 170 and 180 m and 10 m/s at 180 m
+only (none at 150-175 m). Dropping the floor gives 25 s instead of 28 s laps but puts the lowest
+point at 33-35 m, under the 40 m `min_height` gate, so it stays. The high caps had equalled the
+base ones, so their step moves 13.2 -> 16.5 m/s and only these two winds change;
+`startup_retry_length_steps` [20] -> [10, 20] gives 10 m/s its 180 m.
+Flown: both converge and track, but their 30-32 s laps from 170 and 180 m hold 2.0 laps, under
+2.5; 150 and 160 m have no startup solution. New `run.min_laps_high` 2.0 from
+`min_laps_high_wind` 16.5 m/s at `low_wind_height`. Cabauw 9 m/s: all 10 criteria, 15.0 kW,
+power ratio 0.76, peak 6543 N. Cabauw 10 m/s: all 10 criteria, 15.2 kW, ratio 0.77, peak 6566 N.

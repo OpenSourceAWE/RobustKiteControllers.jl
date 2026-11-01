@@ -40,6 +40,18 @@ low_wind_reference(fcs::FC_Settings, project_set) =
     project_set.v_wind
 
 """
+    min_laps_at(fcs::FC_Settings, project_set) -> Float64
+
+The laps a run must fly to pass: `fcs.run.min_laps_high` when the wind at
+`fcs.low_wind.low_wind_height` ([`low_wind_reference`](@ref)) is at or above
+`fcs.run.min_laps_high_wind > 0`, `fcs.run.min_laps` otherwise.
+"""
+min_laps_at(fcs::FC_Settings, project_set) =
+    fcs.run.min_laps_high_wind > 0 &&
+    low_wind_reference(fcs, project_set) >= fcs.run.min_laps_high_wind ?
+    fcs.run.min_laps_high : fcs.run.min_laps
+
+"""
     apply_low_wind_schedule!(fcs, tos, project_set; keep = ()) -> NamedTuple
 
 Overwrite the starting tether length `project_set.l_tether` and `tos.guess.guess_el_center` with

@@ -139,3 +139,7 @@ fc_settings:
     entry_time:         62.0     # Settle time after park_time before the metrics     [s]
     min_elevation:       6.5     # Floor criterion over the WHOLE run; also the reopt install gate [deg]
     min_span_frac:      0.7      # Pattern-SIZE criterion, fraction of f8_a / f8_b    [-]
+    min_laps:           2.5      # Laps criterion: figure-eight laps in the scored window [-]
+    min_laps_high:      2.0      # The same from min_laps_high_wind on: Cabauw 9 and 10 m/s fly 30-32 s laps from
+                                 # their shortest feasible starts, 170 and 180 m, i.e. 2.0 laps (2026-11-01) [-]
+    min_laps_high_wind: 16.5     # Wind speed at low_wind_height from which min_laps_high applies; 0 = off [m/s]

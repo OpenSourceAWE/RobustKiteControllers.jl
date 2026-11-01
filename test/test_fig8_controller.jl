@@ -1079,7 +1079,7 @@ end
         @test tos.guess.guess_a == 32.0
         @test tos.guess.guess_b == 14.0
         @test tos.guess.startup_retry_guess_sizes == [[30.0, 13.0], [34.0, 15.0], [26.0, 11.0]]
-        @test tos.guess.startup_retry_length_steps == [20.0]
+        @test tos.guess.startup_retry_length_steps == [10.0, 20.0]
         @test tos.box.angle_of_attack_min == -7.0
         @test RobustKiteControllers.aoa_limits(tos).min == -7.0
         @test isnothing(RobustKiteControllers.aoa_limits(TrajOptSettings(tos; angle_of_attack_min = NaN)))
@@ -1097,9 +1097,11 @@ end
         # 10° -> 11°: Cabauw 10 at f_high 7200 N needs 10.5-10.7° at 150 m (2026-09-23).
         # 11° -> 13°: with the wing drag Cabauw 10 needs more (2026-10-05, commit 1290d50).
         # 13° -> 15° (2026-10-28), not below the low-wind cap.
-        @test tos.box.pattern_elevation_amplitude_max_high == 15.0
+        # 15° -> 20° and the step 13.2 -> 16.5 m/s: only Cabauw 9 and 10 m/s (17.4 and 19.3)
+        # are above it, and they converge only with the larger box (2026-10-31).
+        @test tos.box.pattern_elevation_amplitude_max_high == 20.0
         # Keyed on the 100 m wind: Maasvlakte 10 m/s is 12.9 there, Cabauw 7 m/s 13.5.
-        @test tos.box.pattern_elevation_amplitude_max_wind_ref == 13.2
+        @test tos.box.pattern_elevation_amplitude_max_wind_ref == 16.5
         @test tos.box.pattern_elevation_amplitude_max_wind_height == 100.0
         # 32° at and above the same wind: under the 45° climb limit Cabauw 10 needs ±28.4-28.8°,
         # and the startup solve 2-3° of room beyond (2026-10-03). 32° -> 36° with the wing drag
@@ -1107,7 +1109,7 @@ end
         # and tracked worse (2026-10-05, b68455e).
         # Both 36° for rom_config_aerostructural2 (2026-10-28).
         @test tos.box.pattern_azimuth_max == 36.0
-        @test tos.box.pattern_azimuth_max_high == 36.0
+        @test tos.box.pattern_azimuth_max_high == 45.0
         # The optimizer's lopsided basins are closed by the mirror-symmetry rows (2026-09-25).
         @test tos.box.pattern_symmetric === true
         @test TrajOptSettings().box.pattern_symmetric === false
