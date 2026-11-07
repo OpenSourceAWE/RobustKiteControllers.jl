@@ -50,7 +50,8 @@ function fake_server(; fail = Float64[], fail_warm = false,
         path == "/trajectory" && return json(200, table(power[]))
         path == "/init" &&
             return json(200, Dict("name" => body["name"], "length" => body["length"],
-                                  "trajectory" => body["trajectory"], "state" => "ready"))
+                                  "trajectory" => body["trajectory"], "state" => "ready",
+                                  "rom_config" => "/srv/LEI-V3-KITE/" * body["rom_config_path"]))
         if path == "/step"
             validation && return json(422, Dict("detail" => [Dict("loc" => ["body", "bogus"],
                                                                    "msg" => "extra field")]))

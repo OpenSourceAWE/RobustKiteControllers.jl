@@ -11,6 +11,7 @@ The parameters of the reel-out law that change with wind speed, from the project
 
 ```@docs
 winch_f_low
+winch_kv
 winch_force_limit
 winch_table_lookup
 winch_table_select

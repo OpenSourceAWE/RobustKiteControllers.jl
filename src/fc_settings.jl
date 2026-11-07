@@ -280,6 +280,11 @@ $(TYPEDFIELDS)
     low_wind_l_tether::Vector{Float64} = Float64[]
     "Startup guess's centre elevation [deg] (`guess_el_center`)"
     low_wind_guess_el_center::Vector{Float64} = Float64[]
+    "Wind speed [m/s] at `low_wind_height` at and above which reel-out starts at
+    `high_wind_l_tether`; `0.0` = off"
+    high_wind_speed::Float64 = 0.0
+    "Tether length [m] reel-out starts at from `high_wind_speed` on"
+    high_wind_l_tether::Float64 = 0.0
 end
 
 """
@@ -313,6 +318,12 @@ $(TYPEDFIELDS)
     min_elevation = 10.0
     "Min. size, fraction of `f8_a` (per side), `f8_b` (span)"
     min_span_frac = 0.7
+    "Laps criterion: figure-eight laps the scored window must hold"
+    min_laps = 2.5
+    "Laps criterion at and above `min_laps_high_wind`"
+    min_laps_high = 2.5
+    "Wind speed at `low_wind.low_wind_height` from which `min_laps_high` applies [m/s]; `0.0` = off"
+    min_laps_high_wind = 0.0
 end
 
 # The field list is written out rather than `$(TYPEDFIELDS)`, so that each type links to

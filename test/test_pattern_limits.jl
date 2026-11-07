@@ -48,6 +48,21 @@ import RobustKiteControllers: PatternLimits, pattern_limits_from, elevation_min_
         @test pattern_limits_from(tos; wind_speed = 12.0).elevation_amplitude_max == 6.0
     end
 
+    @testset "shape_high" begin
+        tos = TrajOptSettings(off; pattern_symmetric = true, pattern_climb_angle_max = 45,
+                              pattern_shape_wind_ref = 12.5)
+        @test pattern_limits_from(tos; wind_speed = 12.4).symmetric === true
+        @test pattern_limits_from(tos; wind_speed = 12.4).climb_angle_max == 45.0
+        # At and above the ref wind both are off (the _shape_high defaults), and with them the box.
+        @test isnothing(pattern_limits_from(tos; wind_speed = 12.5))
+        high = pattern_limits_from(TrajOptSettings(tos; pattern_azimuth_max = 36); wind_speed = 12.5)
+        @test isnothing(high.symmetric) && isnothing(high.climb_angle_max)
+        # An unknown wind, or the step disabled, keeps the base values.
+        @test pattern_limits_from(tos).symmetric === true
+        @test pattern_limits_from(TrajOptSettings(tos; pattern_shape_wind_ref = 0.0);
+                                  wind_speed = 20.0).climb_angle_max == 45.0
+    end
+
     @testset "azimuth_max_at" begin
         # The same wind step as the elevation cap: pattern_elevation_amplitude_max_wind_ref.
         tos = TrajOptSettings(off; pattern_azimuth_max = 28.0, pattern_azimuth_max_high = 30.0)

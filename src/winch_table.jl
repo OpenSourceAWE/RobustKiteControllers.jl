@@ -47,6 +47,18 @@ winch_f_low(v_wind; project = project_file()) =
     winch_table_lookup(v_wind, "f_low"; project)
 
 """
+    winch_kv(v_wind; project = project_file()) -> Float64
+
+Wind-speed-dependent gain of the reel-out law `v_set = kv * sqrt(force)`, from the `kv`
+column of the project's `winch_table` file (see [`winch_table_lookup`](@ref)). Overrides
+the flat `kv` of `data/wc_settings.yaml`; the caller assigns it to `WCSettings.kv`, which
+the winch flies and the optimizer requests send alike. A lower `kv` reels out slower, so
+the kite keeps more of a weak wind.
+"""
+winch_kv(v_wind; project = project_file()) =
+    winch_table_lookup(v_wind, "kv"; project)
+
+"""
     winch_table_select(v_wind, key; project = project_file()) -> Any
 
 Step-lookup of column `key`: the value of the LAST row at or below `v_wind`,

@@ -7,23 +7,26 @@
 # beyond reading `setup.s.dt`, so the package still does not depend on it.
 
 """
-    startup_params(setup, el_center) -> InitParams
+    startup_params(setup, el_center, size = nothing) -> InitParams
 
 The startup `/init` request seeded with the guess lemniscate centred at
-`el_center` [deg] and fitted into the startup box `opt_box` ([`guess_in_box`](@ref)), as the
-cold re-optimizations are; everything else comes from `tos`, the inflow and the
-first-lap winch.
+`el_center` [deg], `size = (guess_a, guess_b)` [deg] or `tos`'s own, and fitted into the
+startup box `opt_box` ([`guess_in_box`](@ref)), as the cold re-optimizations are; everything
+else comes from `tos`, the inflow and the first-lap winch.
 """
-function startup_params(setup, el_center)
+function startup_params(setup, el_center, size = nothing)
     (; tos, l_set, winch_first_lap, inflow, opt_r_min, opt_box) = setup
-    guess_a, guess_b, guess_el = guess_in_box(tos.guess.guess_a, tos.guess.guess_b, el_center, opt_box)
+    a, b = something(size, (tos.guess.guess_a, tos.guess.guess_b))
+    guess_a, guess_b, guess_el = guess_in_box(a, b, el_center, opt_box)
     az, el = figure_eight_path(guess_a, guess_b, 0.0, guess_el, 0.0, GUESS_POINTS)
     InitParams(; name = OPT_NAME, length = opt_length(l_set),
                winch_params = winch_first_lap, inflow_conditions = inflow,
                trajectory = Trajectory(collect(az), collect(el)),
                input_depower = depower_seed(tos, inflow.wind_speed),
                reg_weight = REG_WEIGHT, depower = depower_spec(tos),
-               min_turn_radius = opt_r_min, pattern_limits = opt_box)
+               min_turn_radius = opt_r_min, pattern_limits = opt_box,
+               system_config_path = awetrim_system_config(),
+               angle_of_attack_limits = aoa_limits(tos))
 end
 
 """
@@ -64,7 +67,8 @@ function solve_startup_path!(setup, st::RunState)
     (; tos, el_center_seed_base, l_set, winch, inflow) = setup
     t_solve_start = time()
     (; opt_result, el_center_seed, startup_seed_offset, guess_az, guess_el) =
-        solve_startup(tos, el -> startup_params(setup, el), params -> startup_solve(setup, params),
+        solve_startup(tos, (el, size) -> startup_params(setup, el, size),
+                      params -> startup_solve(setup, params),
                       startup_params(setup, setup.el_center_seed), el_center_seed_base, l_set, winch,
                       inflow)
     st.opt_result = opt_result
@@ -74,6 +78,38 @@ function solve_startup_path!(setup, st::RunState)
                         shipped guess would have given.", el_center_seed, startup_seed_offset)
     return (; el_center_seed, startup_seed_offset, guess_az, guess_el,
             opt_startup_solve_s = time() - t_solve_start)
+end
+
+"""
+    setup_with_startup(inputs; init_model) -> (setup, st)
+
+[`setup_run`](@ref) and the startup solve ([`solve_startup_path!`](@ref)), with the `RunState`
+`st` it wrote into. When no seed gives a path ([`StartupNoPath`](@ref)), the steps of
+`startup_retry_length_steps` are added in turn to the length the run started at, and the
+model is set up again there through the `l_tether` run input. Other errors, and the last
+`StartupNoPath`, are rethrown.
+"""
+function setup_with_startup(inputs; init_model)
+    l_start = nothing
+    for k in 0:typemax(Int)
+        setup = setup_run(inputs; init_model)
+        st = RunState(; l_set = setup.l_set, opt_r_scale = setup.opt_r_scale,
+                      opt_r_min = setup.opt_r_min,
+                      depower_flown_opt = setup.fcs.course.depower_setpoint)
+        l_start = something(l_start, setup.l_tether)
+        steps = setup.tos.guess.startup_retry_length_steps
+        try
+            merge_into!(setup, solve_startup_path!(setup, st))
+            return setup, st
+        catch exc
+            exc isa StartupNoPath && k < length(steps) || rethrow()
+            l_next = l_start + steps[k + 1]
+            @warn @sprintf("No startup path at %.1f m: retry %d/%d at %.1f m \
+                            (startup_retry_length_steps).", setup.l_tether, k + 1,
+                           length(steps), l_next)
+            inputs = merge(inputs, (; l_tether = l_next))
+        end
+    end
 end
 
 """

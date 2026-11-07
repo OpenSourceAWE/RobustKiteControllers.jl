@@ -5,3 +5,7 @@ match_by = "code"
 match_type = "literal"
 severity = "off"
 path = "examples/**/*.jl"
+
+# No inferred-type inlay hints in the editor; the `end`-tag hints stay.
+[inlay_hint.types]
+enabled = false

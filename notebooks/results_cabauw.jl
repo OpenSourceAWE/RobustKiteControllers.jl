@@ -5,10 +5,17 @@ try; import KaimonSlate; catch; error("This is a Kaimon Slate notebook — runni
 <div class="md">
 <h1 class="intro-title">Simulation Results Reel-Out testing at Cabauw, NL</h1>
 </div>
+<nav class="site-nav"><a class="site-button" href="https://opensourceawe.github.io/SimulationResults/">Maasvlakte</a></nav>
 """,
 css"""
 /* the export's auto-generated doc header duplicates this cell's own title — this IS the title */
 .exp-titleblock { display: none; }
+.site-nav { display: flex; justify-content: flex-end; margin: .25rem 0 .5rem; }
+.site-button {
+  display: inline-block; padding: .35rem 1rem; border: 1px solid currentColor; border-radius: 6px;
+  color: inherit; text-decoration: none; opacity: .85;
+}
+.site-button:hover { opacity: 1; background: rgba(127, 127, 127, .15); }
 """)
 
 #%% code id=columns_bind

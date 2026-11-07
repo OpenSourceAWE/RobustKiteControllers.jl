@@ -249,7 +249,9 @@ function setup_run(inputs; init_model)
     # an override of the same setting wins.
     apply_low_wind_schedule!(fcs, tos, project_set;
                              keep = (keys(inputs.fcs_overrides)..., keys(inputs.tos_overrides)...,
-                                     keys(inputs.set_overrides)...))
+                                     keys(inputs.set_overrides)...,
+                                     (isnothing(inputs.l_tether) ? () : (:l_tether,))...))
+    isnothing(inputs.l_tether) || (project_set.l_tether = Float64(inputs.l_tether))
     l_tether = project_set.l_tether
 
     # Whether `min_power_frac`/`min_power_frac_prev` are bypassed for a candidate predicting `pred`

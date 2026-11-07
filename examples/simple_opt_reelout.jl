@@ -101,9 +101,10 @@ flown here; the pattern's centre and extent are measured off the installed path.
 
 The run keeps two: `setup` (see `setup_run`), everything it reads, and `st`, the
 `RunState` everything it writes. The setup and the startup are the package's
-(`src/run_setup.jl`, `src/startup_path.jl`): the script hands `setup_run` its
-`init_model` (`model_setup.jl`), since the package does not depend on the model,
-and calls the startup steps in order. `startup_feasibility` (the gates of
+(`src/run_setup.jl`, `src/startup_path.jl`): the script hands `setup_with_startup`
+its `init_model` (`model_setup.jl`), since the package does not depend on the model,
+which sets the run up again at a longer tether when the startup finds no path
+(`startup_retry_length_steps`), and calls the remaining startup steps in order. `startup_feasibility` (the gates of
 [`check_startup_path`](@ref)) adds `feas`, `margin5`, `c1_at_phase` and
 `phase5_margin_at` to `setup`. Left here are the loop around the model's `step!`
 (`run_loop!`) and `reelout_results.jl` (scoring, summary YAML, archive, plots,
@@ -129,7 +130,7 @@ using V3Kite
 using RobustKiteControllers
 using RobustKiteControllers: project_file   # V3Kite exports a project_file(project, entry) of its own
 # The run's setup and startup (src/run_setup.jl, src/startup_path.jl), not exported.
-using RobustKiteControllers: setup_run, write_run_done, solve_startup_path!, log_startup_reply,
+using RobustKiteControllers: setup_with_startup, write_run_done, log_startup_reply,
     log_lobe_lift, adopt_startup_path!, finish_startup!, capture_startup_geometry!,
     startup_feasibility, init_phase5_and_controller!, init_loop_state!, merge_into!
 import WinchControllers   # module name, for the wc_overrides refresh (calc_vro)
@@ -156,20 +157,14 @@ toc("Loaded packages in: ")
 set_data_path(normpath(joinpath(@__DIR__, "..", "data")))
 # V3Kite is torque-only; the winch adapter uses WinchControllers.jl to implement the force dependent speed control.
 include(joinpath(@__DIR__, "winch_adapter.jl"))
-# The model, which the package cannot build: `init_model`, passed to `setup_run`.
+# The model, which the package cannot build: `init_model`, passed to `setup_with_startup`.
 include(joinpath(@__DIR__, "model_setup.jl"))
 # Reference curve and log name for simple_reelout_plots.jl; set by reelout_results.jl, cleared here.
 REF_PATH = nothing
 LOG_NAME = nothing
 
 # `run_example(file; kwargs)` includes this script; `script_inputs` reads its kwargs, else the defaults.
-setup = setup_run(script_inputs(@__FILE__, run_input_defaults()); init_model)
-
-# What phases 3+ fly: the optimizer's depower; the fixed setpoint until the first optimizer answer.
-st = RunState(; l_set = setup.l_set, opt_r_scale = setup.opt_r_scale, opt_r_min = setup.opt_r_min,
-              depower_flown_opt = setup.fcs.course.depower_setpoint)
-
-merge_into!(setup, solve_startup_path!(setup, st))
+setup, st = setup_with_startup(script_inputs(@__FILE__, run_input_defaults()); init_model)
 toc("Received the optimized path in: ")
 log_startup_reply(setup.fcs, setup.tos, st.opt_result, setup.opt_r_min)
 log_lobe_lift(setup.fcs, st.opt_result)

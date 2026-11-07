@@ -21,6 +21,8 @@ Every input a caller of `simple_opt_reelout.jl` may pass with
   `hook_settle`: the V1 stability hook.
 - `replay_paths`: a scenario folder whose optimizer results are replayed.
 - `output_path`: where the log goes instead of `output/`, `nothing` for `output/`.
+- `l_tether`: the tether length reel-out starts at [m], `nothing` for the project's or the
+  low-wind schedule's; set by [`setup_with_startup`](@ref) to retry a startup at a longer one.
 """
 run_input_defaults() =
     (; show_plots = true, run_archive = true, path_tr_project = nothing,
@@ -28,4 +30,5 @@ run_input_defaults() =
        wc_overrides = Dict{Symbol, Any}(), set_overrides = Dict{Symbol, Any}(),
        steer_disturbance = nothing, xtrack_offset = nothing, xtrack_phase = 5,
        hold_compliance = nothing, steer_gain_factor = 1.0, steer_gain_feedback_only = false,
-       extra_steer_delay = 0, hook_settle = 15.0, replay_paths = nothing, output_path = nothing)
+       extra_steer_delay = 0, hook_settle = 15.0, replay_paths = nothing, output_path = nothing,
+       l_tether = nothing)

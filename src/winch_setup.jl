@@ -51,6 +51,7 @@ function build_winch(project, project_set, fcs)
     wc = load_wc_settings(KiteUtils.wc_settings(project); dt = dt0)
     # Wind-dependent floor; NOT the entry guard's floor, that is fcs.winch.entry_f_min.
     wc.f_low = winch_f_low(project_set.v_wind; project)
+    wc.kv = winch_kv(project_set.v_wind; project)
     # The soft law's floor cannot go below ~700 N, so it is off at low wind; see `winch_force_limit`'s docstring.
     wc.force_limit = winch_force_limit(project_set.v_wind; project)
     wpc = WinchPosController(wc; dt = dt0)   # the length loop `step!` used to own
