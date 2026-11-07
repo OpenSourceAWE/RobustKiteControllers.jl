@@ -59,7 +59,7 @@ The AWETrim ROM every request flies against, as `rom_config_path` of `/init` and
 (`data/LEI-V3-KITE/` of the AWETrim checkout). [`opt_init`](@ref) refuses a reply
 that names another file.
 """
-const AWETRIM_ROM = "rom_config_aerostructural2.yaml"
+const AWETRIM_ROM = "rom_config_aerostructural.yaml"
 "The AWETrim checkout `bin/install_awetrim` creates and `bin/run_server` starts."
 const AWETRIM_DIR = normpath(joinpath(RKC_ROOT, "..", "AWETrim"))
 """
