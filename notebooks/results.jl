@@ -5,6 +5,7 @@ try; import KaimonSlate; catch; error("This is a Kaimon Slate notebook — runni
 <div class="md">
 <h1 class="intro-title">Simulation Results Reel-Out testing at Maasvlakte, NL</h1>
 </div>
+<nav class="site-nav"><a class="site-button" href="https://opensourceawe.github.io/SimulationResults/cabauw/">Cabauw</a></nav>
 <div class="video-frame">
   <img id="video-poster" class="video-poster" src="/n/results/asset/notebooks/images/reelout_thumb.jpg"
        alt="Reel-out video — click to play" title="Click to play video">
@@ -15,6 +16,12 @@ try; import KaimonSlate; catch; error("This is a Kaimon Slate notebook — runni
 css"""
 /* the export's auto-generated doc header duplicates this cell's own title — this IS the title */
 .exp-titleblock { display: none; }
+.site-nav { display: flex; justify-content: flex-end; margin: .25rem 0 .5rem; }
+.site-button {
+  display: inline-block; padding: .35rem 1rem; border: 1px solid currentColor; border-radius: 6px;
+  color: inherit; text-decoration: none; opacity: .85;
+}
+.site-button:hover { opacity: 1; background: rgba(127, 127, 127, .15); }
 .video-frame { position: relative; width: 100%; max-width: 800px; margin: 1rem auto 0; }
 .video-poster { display: block; width: 100%; height: auto; border-radius: 6px; cursor: pointer; }
 .video-poster[hidden] { display: none; }
@@ -129,7 +136,7 @@ The average mechanical power during reel-out, the force, and the speed are shown
 
 #%% md id=wind_speed_hint
 @md"""
-The optimal trajectory of the kite, the shape of the figure of eight, depends on the tether length and on the wind speed. Below, use the slider to adjust the ground wind speed, and see the shape of the desired and actual trajectory the kite flies. For each figure-of-eight, the AWETrim quasi-static optimizer calculated the optimal trajectory.
+The optimal trajectory of the kite, the shape of the figure of eight, depends on the tether length and on the wind speed. Below, use the slider to adjust the ground wind speed, and see the shape of the desired and actual trajectory the kite flies. For each figure-of-eight, the AWETrim quasi-static optimizer calculated the optimal trajectory. Note that at 3 m/s no run was performed and the run at 3.5 m/s is shown instead, here and in all plots below.
 """
 
 #%% code id=wind_speed_bind
@@ -138,7 +145,7 @@ The optimal trajectory of the kite, the shape of the figure of eight, depends on
 #%% web id=pattern_plot controls=wind_speed
 @web(html"""
 <div id="pattern">
-  <img data-v="3" src="/n/results/asset/notebooks/images/maasvlakte/pattern_v03.png" alt="flight pattern, 3 m/s">
+  <img data-v="3" src="/n/results/asset/notebooks/images/maasvlakte/pattern_v03.5.png" alt="flight pattern, 3.5 m/s">
   <img data-v="4" src="/n/results/asset/notebooks/images/maasvlakte/pattern_v04.png" alt="flight pattern, 4 m/s">
   <img data-v="5" src="/n/results/asset/notebooks/images/maasvlakte/pattern_v05.png" alt="flight pattern, 5 m/s">
   <img data-v="6" src="/n/results/asset/notebooks/images/maasvlakte/pattern_v06.png" alt="flight pattern, 6 m/s">
@@ -249,7 +256,7 @@ state machine over the whole run. The first subplot, `d ', shows the distance be
 #%% web id=time_series_plot controls=wind_speed
 @web(html"""
 <div id="time_series">
-  <img data-v="3" src="/n/results/asset/notebooks/images/maasvlakte/time_series_v03.png" alt="time series, 3 m/s">
+  <img data-v="3" src="/n/results/asset/notebooks/images/maasvlakte/time_series_v03.5.png" alt="time series, 3.5 m/s">
   <img data-v="4" src="/n/results/asset/notebooks/images/maasvlakte/time_series_v04.png" alt="time series, 4 m/s">
   <img data-v="5" src="/n/results/asset/notebooks/images/maasvlakte/time_series_v05.png" alt="time series, 5 m/s">
   <img data-v="6" src="/n/results/asset/notebooks/images/maasvlakte/time_series_v06.png" alt="time series, 6 m/s">
@@ -298,7 +305,7 @@ mechanical power over the whole run, and the cumulative mechanical energy.
 #%% web id=power_plot controls=wind_speed
 @web(html"""
 <div id="power">
-  <img data-v="3" src="/n/results/asset/notebooks/images/maasvlakte/power_v03.png" alt="power, 3 m/s">
+  <img data-v="3" src="/n/results/asset/notebooks/images/maasvlakte/power_v03.5.png" alt="power, 3.5 m/s">
   <img data-v="4" src="/n/results/asset/notebooks/images/maasvlakte/power_v04.png" alt="power, 4 m/s">
   <img data-v="5" src="/n/results/asset/notebooks/images/maasvlakte/power_v05.png" alt="power, 5 m/s">
   <img data-v="6" src="/n/results/asset/notebooks/images/maasvlakte/power_v06.png" alt="power, 6 m/s">
@@ -348,7 +355,7 @@ kite speed over the whole run.
 #%% web id=aerodynamics_plot controls=wind_speed
 @web(html"""
 <div id="aerodynamics">
-  <img data-v="3" src="/n/results/asset/notebooks/images/maasvlakte/aerodynamics_v03.png" alt="aerodynamics, 3 m/s">
+  <img data-v="3" src="/n/results/asset/notebooks/images/maasvlakte/aerodynamics_v03.5.png" alt="aerodynamics, 3.5 m/s">
   <img data-v="4" src="/n/results/asset/notebooks/images/maasvlakte/aerodynamics_v04.png" alt="aerodynamics, 4 m/s">
   <img data-v="5" src="/n/results/asset/notebooks/images/maasvlakte/aerodynamics_v05.png" alt="aerodynamics, 5 m/s">
   <img data-v="6" src="/n/results/asset/notebooks/images/maasvlakte/aerodynamics_v06.png" alt="aerodynamics, 6 m/s">
