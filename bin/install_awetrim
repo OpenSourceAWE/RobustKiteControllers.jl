@@ -9,7 +9,9 @@
 #
 # AWETrim is a Python project, so it gets its own venv with the dev and server
 # extras installed in editable mode; bin/run_server (here and in AWETrim) expects
-# exactly that layout: ../AWETrim/venv/bin/python.
+# exactly that layout: ../AWETrim/venv/bin/python. With uv in PATH, uv creates
+# the venv and installs into it; without it, python3's venv and pip are used,
+# and pip is bootstrapped first in a venv that lacks it (one uv created).
 #
 # The checkout is a sibling of this repository, not a subdirectory, so it is
 # shared with the other workspaces that talk to the same server.
@@ -44,7 +46,7 @@ for cmd in git python3; do
     fi
 done
 
-if ! python3 -c "import venv" >/dev/null 2>&1; then
+if ! command -v uv >/dev/null 2>&1 && ! python3 -c "import venv" >/dev/null 2>&1; then
     echo "ERROR: the python3 venv module is missing." >&2
     echo "On Debian/Ubuntu install it with:  sudo apt install python3-venv" >&2
     exit 1
@@ -85,13 +87,25 @@ cd "$TARGET"
 # --- virtual environment ------------------------------------------------------
 if [[ ! -x venv/bin/python ]]; then
     echo "Creating the virtual environment in $(pwd)/venv ..."
-    python3 -m venv venv
+    if command -v uv >/dev/null 2>&1; then
+        uv venv venv
+    else
+        python3 -m venv venv
+    fi
 fi
 echo "Using $(venv/bin/python --version)"
 
 echo "Installing AWETrim with the dev and server extras ..."
-venv/bin/pip install --upgrade pip
-venv/bin/pip install -e '.[dev,server]'
+if command -v uv >/dev/null 2>&1; then
+    uv pip install --python venv/bin/python -e '.[dev,server]'
+else
+    # A venv created by uv has no pip.
+    if ! venv/bin/python -m pip --version >/dev/null 2>&1; then
+        venv/bin/python -m ensurepip --upgrade
+    fi
+    venv/bin/python -m pip install --upgrade pip
+    venv/bin/python -m pip install -e '.[dev,server]'
+fi
 
 # --- check ---------------------------------------------------------------------
 if ! venv/bin/python -c "import fastapi, uvicorn" 2>/dev/null; then
