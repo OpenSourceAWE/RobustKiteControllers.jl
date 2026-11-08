@@ -22,8 +22,12 @@
 - A startup wind ramp (`guess.startup_wind_ramp_start`, `startup_wind_ramp_step`; 7 and
   1 m/s, `0.0` = off): above the start wind the startup solve is solved there and the wind
   stepped up warm through `/step` to the run's. Cabauw 10 m/s failed cold from every seed.
-- Known open: Cabauw 10 m/s needs a start at 180 m (150 m is infeasible with the steering
-  slew; `l_tethers` of `settings_reelout_cabauw.yaml`); Maasvlakte 4 m/s reels out at a
+- A high-wind start length next to the low-wind schedule (`low_wind:` section of
+  `fc_settings_reelout.yaml`, `high_wind_speed` / `high_wind_l_tether`,
+  `high_wind_l_tether()`): at and above 16 m/s at 100 m reel-out starts at 180 m.
+  Cabauw 10 m/s (19.3 m/s there) has no feasible startup path at 150 m with the
+  steering slew and the 50 m height floor; Cabauw 7 and Maasvlakte 10 still start at 150 m.
+- Known open: Maasvlakte 4 m/s reels out at a
   power ratio of 1.21 but fails the phase-5 transition at the end of reel-out, flying
   more powered (rel_depower ~0.19-0.21) than the turn-rate table covers (0.20-0.375),
   which should be extended to about 0.18-0.40.

@@ -1158,6 +1158,17 @@ end
         @test fro.low_wind.low_wind_l_tether[end] == 150.0
         @test fro.low_wind.low_wind_guess_el_center[end] == TrajOptSettings("traj_opt.yaml").guess.guess_el_center
         @test low_wind_schedule(fro, 4.51).guess_el_center == 25.0
+        # high_wind_l_tether: off at 0.0, the length from the threshold on, an error without it.
+        @test isnothing(high_wind_l_tether(flw, 30.0))
+        flw.low_wind.high_wind_speed = 16.0
+        @test_throws ErrorException high_wind_l_tether(flw, 16.0)
+        flw.low_wind.high_wind_l_tether = 180.0
+        @test isnothing(high_wind_l_tether(flw, 15.9))
+        @test high_wind_l_tether(flw, 16.0) == 180.0
+        # The shipped threshold: Cabauw 10 m/s (19.3 at 100 m) starts at 180 m, Cabauw 7
+        # (13.5) and Maasvlakte 10 (12.9) at the files' 150 m (2026-11-08).
+        @test high_wind_l_tether(fro, 19.3) == 180.0
+        @test isnothing(high_wind_l_tether(fro, 13.5))
         tos = TrajOptSettings("traj_opt.yaml")
         # Below the struct's 1.0, but no longer for the old reason: the request is
         # scaled from this number and the optimizer honours it, so what the gate
