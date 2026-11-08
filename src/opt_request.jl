@@ -32,8 +32,10 @@ function awetrim_depower_to_v3kite(l_dp, tos)
     return Float64(f(l_dp)) + tos.seed.depower_offset
 end
 
-"AWETrim's own bounds on `input_depower`, from `src/awetrim/utils/defaults.py` [m]."
-const DEPOWER_SEED_BOUNDS = (1.1, 2.3)
+"The ROM's depower band, `validity.input_depower` of AWETrim's
+`rom_config_aerostructural.yaml` (2026-11-05 identification), to which the server clips
+its `input_depower` box [m]."
+const DEPOWER_SEED_BOUNDS = (1.5, 2.6)
 
 """
     depower_seed(tos, wind_speed) -> Float64

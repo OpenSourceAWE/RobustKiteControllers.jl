@@ -1083,9 +1083,12 @@ end
         @test tos.box.pattern_elevation_amplitude_max == 8.5
         # 10° -> 11°: Cabauw 10 at f_high 7200 N needs 10.5-10.7° at 150 m (2026-09-23).
         # 11° -> 13°: with the wing drag Cabauw 10 needs more (2026-10-05, commit 1290d50).
-        @test tos.box.pattern_elevation_amplitude_max_high == 13.0
-        # Keyed on the 100 m wind: Maasvlakte 10 m/s is 12.9 there, Cabauw 7 m/s 13.5.
-        @test tos.box.pattern_elevation_amplitude_max_wind_ref == 13.2
+        # 13° -> 17°: on the 2026-11-05 ROM the 10 m/s laps outran the 0.29 1/s steering
+        # slew at 13° (2026-11-07).
+        @test tos.box.pattern_elevation_amplitude_max_high == 17.0
+        # Keyed on the 100 m wind: Maasvlakte 10 m/s is 12.9 there, Cabauw 7 m/s 13.5;
+        # 13.2 -> 12.5 so Maasvlakte 10 m/s gets the high cap too (2026-11-07).
+        @test tos.box.pattern_elevation_amplitude_max_wind_ref == 12.5
         @test tos.box.pattern_elevation_amplitude_max_wind_height == 100.0
         # 32° at and above the same wind: under the 45° climb limit Cabauw 10 needs ±28.4-28.8°,
         # and the startup solve 2-3° of room beyond (2026-10-03). 32° -> 36° with the wing drag

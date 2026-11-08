@@ -15,15 +15,22 @@ traj_opt:
     guess_a:          30.0   # width of the guess; azimuth spans ±guess_a    [deg]
     guess_b:          12.0   # height of the guess, peak to peak             [deg]
     guess_el_center:  29.0   # centre elevation of the guess; first knob to move on a 422 [deg]
-    guess_el_center_high:      30.0   # centre elevation at/above the ref wind (a step, not a ramp) [deg]
+    guess_el_center_high:      33.0   # centre elevation at/above the ref wind (a step, not a ramp); 33 keeps
+                                      # the bottom of the 17° high-wind figure above min_elevation [deg]
     guess_el_center_wind_ref:   8.0   # wind at/above which guess_el_center_high applies [m/s]
     startup_retry_el_offsets: [-1.0, 2.0, -2.0]   # seeds tried in order on a startup 422; [] never retries [deg]
+    # Above this wind the startup solve starts here and steps the wind up warm to the run's
+    # (src/startup_path.jl, startup_solve); 0.0 = off. The 2026-11-05 ROM depowers far in
+    # strong wind: Cabauw 10 m/s failed cold from every seed, solved through 7-8-9-10 m/s.
+    startup_wind_ramp_start:    7.0   # [m/s at the reference height]
+    startup_wind_ramp_step:     1.0   # [m/s]
 
   seed:  # depower seed of the solve, ramped with the wind
-    input_depower:     1.6   # depower SEED in metres of tape (server bounds 1.1-2.3), not depower_setpoint [m]
+    input_depower:     1.6   # depower SEED in metres of tape (the ROM's band 1.5-2.6), not depower_setpoint [m]
     input_depower_wind_ref:  7.0   # wind at which input_depower IS the seed  [m/s]
     input_depower_per_wind:  0.25  # tape added per m/s above that; one-sided [m/(m/s)]
-    input_depower_seed_max:  1.85  # ramp ceiling, below the server's 2.3 m  [m]
+    input_depower_seed_max:  2.45  # ramp ceiling, inside the 2026-11-05 ROM's 2.6 m (1.85 for the old ROM): at
+                                   # 10 m/s the optimum is near 2.4 m and a seed at 1.85 cannot be marched [m]
     # Estimate of the tape length the startup reply is FLOWN at, which sizes the turn-radius
     # request; 0 takes the seed above. Fitted 2026-10-05 to the startup replies of the base
     # runs (Cabauw 4-10, Maasvlakte 8, 11 m/s) against the wind at the caps' height (100 m):
@@ -36,7 +43,11 @@ traj_opt:
     # Added to every reply's converted rel_depower, to bring the mean power_ratio to ~1.0.
     # Maasvlakte 2026-10-26: mean power_ratio 0.75 at 0; at -0.013 4/7/10 m/s flew
     # 0.97/0.88/0.91, i.e. d ln P / d rel_depower ~ -16, so -0.018 (docs/fig8_tuning_log.md).
-    depower_offset:          0.0   # [-]
+    # 2026-11-07, 2026-11-05 ROM: V3Kite tape = ROM tape - 0.372 m (std 0.010 m) at matched
+    # lift + drag resultant, from validate_lift_drag.jl and AWETrim's
+    # examples/server/identify_depower_offset.py; -0.372 m / 5 m = -0.074. Power ratios
+    # 0.89-1.11 at 4/7/10 m/s on both sites; redo whenever the ROM or V3Kite changes.
+    depower_offset:          -0.074   # [-]
 
   box:  # pattern box the optimizer solves UNDER; 0.0 keeps the server default (|az| <= 45.8, 0.6 <= el <= 51.6)
     pattern_azimuth_max: 28.0        # closes the wide basin seen at 5.5 m/s; good runs fly ±18-25 [deg]
@@ -48,8 +59,10 @@ traj_opt:
                                      # at 34 ±22° x 16°, RMS d 1.44°, 22.7 instead of 20.4 kW [deg]
     pattern_elevation_amplitude_max: 8.5   # largest elevation HALF-SPAN of the figure; 0.0 = off [deg];
                                            # 8.0 left Maasvlakte 3.5 m/s infeasible at 8.12° (2026-09-24)
-    pattern_elevation_amplitude_max_high:     13.0  # cap at/above the ref wind (a step, not a ramp) [deg]
-    pattern_elevation_amplitude_max_wind_ref: 13.2  # wind AT the height below at/above which the high cap
+    pattern_elevation_amplitude_max_high:     17.0  # cap at/above the ref wind (a step, not a ramp); 13 left the
+                                                    # 2026-11-05 ROM's 10 m/s laps faster than the 0.29 1/s steering slew [deg]
+    pattern_elevation_amplitude_max_wind_ref: 12.5  # wind AT the height below at/above which the high cap
+                                                    # (12.5 since 2026-11-07, so Maasvlakte 10 m/s at 12.9 gets it)
                                                     # applies: Maasvlakte 10 m/s is 12.9 there and flies under
                                                     # 8°, Maasvlakte 11 (14.2) and Cabauw 7-10 (13.5-19.3) need
                                                     # 10° or the startup solve loses its basin (2026-09-21);

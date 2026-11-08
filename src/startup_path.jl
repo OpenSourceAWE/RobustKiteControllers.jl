@@ -6,6 +6,12 @@
 # the run's `setup` (see `setup_run`) and writes into its `RunState` `st`; none touches the model
 # beyond reading `setup.s.dt`, so the package still does not depend on it.
 
+"`inflow` at another reference wind speed `w`, its custom-profile speeds scaled along."
+with_wind(inflow, w) = InflowConditions(; wind_speed = w,
+    wind_direction = inflow.wind_direction, profile_law = inflow.profile_law,
+    alpha = inflow.alpha, z0 = inflow.z0, turbulence = inflow.turbulence,
+    heights = inflow.heights, speeds = inflow.speeds .* (w / inflow.wind_speed))
+
 """
     startup_params(setup, el_center) -> InitParams
 
@@ -32,8 +38,38 @@ end
 `/init` with `params`, the optional seeding solve at `opt_warm_start_awe_trim`,
 then the `/step` under the first-lap winch, the one lap 1 flies. Throws the `HTTP.StatusError` of a
 422 unchanged; the caller decides whether that ends the run.
+
+Above `startup_wind_ramp_start` (`guess:` section, `0.0` = off) the solve starts at that
+wind and steps it up warm by `startup_wind_ramp_step` to the run's: in strong wind the
+kite has to depower far and fly a large figure, an optimum a cold solve from the guess
+does not reach, while each warm step only moves the previous one a little (measured
+2026-11-07 on the 2026-11-05 LEI-V3 ROM: Cabauw 10 m/s failed from every seed cold and
+solved through 7, 8, 9, 10 m/s). Only the reply at the run's wind is flown.
 """
 function startup_solve(setup, params)
+    tos = setup.tos
+    w0 = tos.guess.startup_wind_ramp_start
+    w0 > 0.0 || return startup_solve_at(setup, params)
+    inflow = params.inflow_conditions
+    w_target = inflow.wind_speed
+    w_target > w0 + 1e-9 || return startup_solve_at(setup, params)
+    params0 = InitParams(; (k => getfield(params, k) for k in fieldnames(InitParams))...,
+                         inflow_conditions = with_wind(inflow, w0),
+                         input_depower = depower_seed(tos, w0))
+    result, seed_trajectory = startup_solve_at(setup, params0)
+    w = w0
+    while w < w_target - 1e-9
+        w = min(w + tos.guess.startup_wind_ramp_step, w_target)
+        @info @sprintf("Startup wind ramp: warm step to %.1f m/s (target %.1f m/s).", w, w_target)
+        result = chain_step(setup.opt_chain,
+                            StepParams(opt_length(setup.l_set), setup.winch_first_lap);
+                            inflow_conditions = with_wind(inflow, w))
+    end
+    return result, seed_trajectory
+end
+
+"The startup solve of `params` at its own wind, see [`startup_solve`](@ref)."
+function startup_solve_at(setup, params)
     (; opt_chain, tos, winch, rcs, l_set, winch_first_lap) = setup
     reply = chain_init(opt_chain, params)
     # Seeding solve: the cold first request fails at low winch force, so it is warmed at `opt_warm_start_awe_trim`.
