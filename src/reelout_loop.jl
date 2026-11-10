@@ -271,7 +271,7 @@ the simulation until the solve is over and retries a failed one as a cold `/init
 """
 function request_reopt!(st::RunState, setup, t, phase, l_now)
     (; tos, fcs, opt_chain, opt_r_on, c1_at_phase, cap_wind, el_center_seed, winch_reopt,
-       inflow) = setup
+       inflow, opt_steering) = setup
     try
         # Clocked from here, so a request that fails while being BUILT still has a start.
         st.reopt_t_wall_request = time()
@@ -317,7 +317,8 @@ function request_reopt!(st::RunState, setup, t, phase, l_now)
                                           reg_weight = REG_WEIGHT,
                                           depower = depower_spec(tos),
                                           min_turn_radius = st.opt_r_min,
-                                          pattern_limits = st.opt_box_now)
+                                          pattern_limits = st.opt_box_now,
+                                          steering_limits = opt_steering)
                 # A known failure is served by `opt_chain`, not skipped here: skipping would leave
                 # the chain on the warm lineage, and every later step would miss the cache.
                 reopt_reply = chain_init(opt_chain, reopt_params)
@@ -584,7 +585,7 @@ into `box`, under `st.opt_r_min`. Holds the simulation until the solve is over; 
 optimizer's state.
 """
 function solve_cold!(st::RunState, setup, l_now, el_seed, box)
-    (; tos, opt_chain, winch_reopt, inflow) = setup
+    (; tos, opt_chain, winch_reopt, inflow, opt_steering) = setup
     # Started inside the size box, as in `request_reopt!`.
     guess_a, guess_b, guess_el_center = guess_in_box(tos.guess.guess_a, tos.guess.guess_b, el_seed, box)
     guess_az, guess_el = figure_eight_path(guess_a, guess_b, 0.0, guess_el_center, 0.0,
@@ -596,7 +597,8 @@ function solve_cold!(st::RunState, setup, l_now, el_seed, box)
         reg_weight = REG_WEIGHT,
         depower = depower_spec(tos),
         min_turn_radius = st.opt_r_min,
-        pattern_limits = box)
+        pattern_limits = box,
+        steering_limits = opt_steering)
     reply = chain_init(opt_chain, params)
     chain_step(opt_chain, StepParams(opt_length(l_now), winch_reopt, reply.trajectory);
                wait = false)

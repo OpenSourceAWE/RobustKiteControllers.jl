@@ -21,7 +21,7 @@ cold re-optimizations are; everything else comes from `tos`, the inflow and the
 first-lap winch.
 """
 function startup_params(setup, el_center)
-    (; tos, l_set, winch_first_lap, inflow, opt_r_min, opt_box) = setup
+    (; tos, l_set, winch_first_lap, inflow, opt_r_min, opt_box, opt_steering) = setup
     guess_a, guess_b, guess_el = guess_in_box(tos.guess.guess_a, tos.guess.guess_b, el_center, opt_box)
     az, el = figure_eight_path(guess_a, guess_b, 0.0, guess_el, 0.0, GUESS_POINTS)
     InitParams(; name = OPT_NAME, length = opt_length(l_set),
@@ -29,7 +29,8 @@ function startup_params(setup, el_center)
                trajectory = Trajectory(collect(az), collect(el)),
                input_depower = depower_seed(tos, inflow.wind_speed),
                reg_weight = REG_WEIGHT, depower = depower_spec(tos),
-               min_turn_radius = opt_r_min, pattern_limits = opt_box)
+               min_turn_radius = opt_r_min, pattern_limits = opt_box,
+               steering_limits = opt_steering)
 end
 
 """

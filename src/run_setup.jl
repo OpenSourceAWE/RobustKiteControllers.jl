@@ -119,6 +119,8 @@ Base.@kwdef mutable struct RunSetup{S, CD, CC}
     opt_r_sent::Union{Nothing, Float64}
     "The pattern box sent; nothing when off"
     opt_box::Union{Nothing, PatternLimits}
+    "The KCU's steering range and rate, sent with every `/init`"
+    opt_steering::SteeringLimits
     "Every reply's depower"
     opt_depower_log::Vector{NamedTuple}
     # ---- the laws the gates and the loop read ----
@@ -302,6 +304,9 @@ function setup_run(inputs; init_model)
     # Constraints the solve must respect; the turn radius carries the anchor ratio `L/r` and the gate's headroom.
     (; opt_r_scale, opt_r_min, opt_r_on, opt_r_sent, opt_box) =
         request_constraints(tos, fcs, inflow, cap_wind, opt_length(l_set))
+    opt_steering = steering_limits_from(fcs, project_set)
+    @info @sprintf("Steering limits sent with the request: |u_s| <= %.3f, rate <= %.3f 1/s.",
+                   opt_steering.max, opt_steering.rate)
     # `startup_params` fits the guess into that box; a guess outside it ends in local infeasibility.
     let (guess_a, guess_b, guess_el) = guess_in_box(tos.guess.guess_a, tos.guess.guess_b, el_center_seed, opt_box)
         (guess_a, guess_b, guess_el) == (tos.guess.guess_a, tos.guess.guess_b, el_center_seed) ||
@@ -369,7 +374,7 @@ function setup_run(inputs; init_model)
             output_path, run_done_file, log_name, wc, wpc, dt0, rcs, s, rc, f_high_nominal, guard_lfc,
             l_set, fec, inflow, cap_wind, winch, winch_first_lap, winch_reopt, el_center_seed_base,
             el_center_seed, opt_chain, opt_r_scale, opt_r_min, opt_r_on, opt_r_sent, opt_box,
-            opt_depower_log, power_gate_off, wing_lift, c1_at_depower, c1_ctrl_at,
+            opt_steering, opt_depower_log, power_gate_off, wing_lift, c1_at_depower, c1_ctrl_at,
             c1_setpoint, c1_depower_max, pattern_depower, el_floor)
 end
 

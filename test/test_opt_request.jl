@@ -33,14 +33,14 @@ set_depower_conversion!(l_dp -> (l_dp - 0.2) / 5)
 
     @testset "depower_seed" begin
         lo, hi = DEPOWER_SEED_BOUNDS
-        tos = TrajOptSettings(; input_depower = 1.6, input_depower_per_wind = 0.1, input_depower_wind_ref = 7.0,
+        tos = TrajOptSettings(; input_depower = 1.8, input_depower_per_wind = 0.1, input_depower_wind_ref = 7.0,
                input_depower_seed_max = 0.0)
         # One-sided: flat below the reference wind, a ramp above it.
-        @test depower_seed(tos, 5.0) == 1.6
-        @test depower_seed(tos, 9.0) ≈ 1.8
+        @test depower_seed(tos, 5.0) == 1.8
+        @test depower_seed(tos, 9.0) ≈ 2.0
         # The soft cap clamps short of AWETrim's own bound, silently: it is calibrated.
-        capped = TrajOptSettings(tos; input_depower_seed_max = 1.7)
-        @test (@test_logs depower_seed(capped, 12.0)) == 1.7
+        capped = TrajOptSettings(tos; input_depower_seed_max = 1.9)
+        @test (@test_logs depower_seed(capped, 12.0)) == 1.9
         # AWETrim's hard bound clamps too, and warns: the ramp has run out of tape.
         @test (@test_logs (:warn,) depower_seed(tos, 20.0)) == hi
         @test (@test_logs (:warn,) depower_seed(TrajOptSettings(tos; input_depower = 0.5), 5.0)) == lo

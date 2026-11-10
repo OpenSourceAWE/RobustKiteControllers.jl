@@ -12,7 +12,7 @@ leaves it, without sending the `/init`.
 using Test
 using RobustKiteControllers
 import RobustKiteControllers: InflowConditions, WinchParams, Trajectory, InitParams, StepParams,
-    PatternLimits, DepowerSpec, opt_request_key, stable_hash, chain_key, _key_fields,
+    PatternLimits, DepowerSpec, SteeringLimits, opt_request_key, stable_hash, chain_key, _key_fields,
     opt_failures, opt_failed_before, record_opt_failure!, clear_opt_failures, OptChain,
     _write_chain_entry, _chain_entry, _cached_422, chain_step, chain_status, chain_trajectory,
     record_opt_success!, solve_startup, as_step_reply, as_pattern_limits, guess_el_center_seed,
@@ -59,6 +59,7 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
                   params(; min_turn_radius = 12.0), params(; depower = DepowerSpec()),
                   params(; input_depower = 1.7),
                   params(; pattern_limits = PatternLimits(; azimuth_max = 28.0)),
+                  params(; steering_limits = SteeringLimits(; max = 0.32, rate = 0.2)),
                   params(; winch_params = WinchParams(; mode = "reelout", k_v = 0.04,
                                                       f_min = 700.0, f_max = 7200.0,
                                                       softplus_beta = 0.03)),
@@ -68,6 +69,10 @@ step_key(oc, sp) = chain_key(oc.state, (_key_fields(sp), _key_fields(nothing), n
             @test opt_request_key(q) != k
         end
         @test opt_request_key(params(; length = -0.0)) != opt_request_key(params(; length = 0.0))
+        # Sent as the server's SteeringLimits, unset fields left out.
+        js = JSON3.read(JSON3.write(params(; steering_limits = SteeringLimits(; max = 0.32))))
+        @test js.steering_limits.max == 0.32 && !haskey(js.steering_limits, :rate)
+        @test !haskey(JSON3.read(JSON3.write(params())), :steering_limits)
         @test opt_request_key(params(; length = NaN)) == opt_request_key(params(; length = NaN))
         # `symmetric` is left out of the key while unset, so the keys from before it stay valid.
         @test length(_key_fields(PatternLimits(; azimuth_max = 28.0))) == 5
