@@ -265,6 +265,9 @@ wind speed at
 wind speed the schedule is off and the settings files' own values are flown. Empty
 vectors (the default) switch it off. See [`low_wind_schedule`](@ref).
 
+At and above `high_wind_speed` (same height; `0.0`, the default, = off) reel-out starts
+at `high_wind_l_tether` instead, see [`high_wind_l_tether`](@ref).
+
 YAML (reel-out): [`fc_settings_reelout.yaml`](@ref example_fc_settings_reelout).
 
 # Fields
@@ -280,6 +283,11 @@ $(TYPEDFIELDS)
     low_wind_l_tether::Vector{Float64} = Float64[]
     "Startup guess's centre elevation [deg] (`guess_el_center`)"
     low_wind_guess_el_center::Vector{Float64} = Float64[]
+    "Wind speed [m/s] at `low_wind_height` at and above which reel-out starts at
+    `high_wind_l_tether`; `0.0` = off"
+    high_wind_speed::Float64 = 0.0
+    "Tether length [m] reel-out starts at from `high_wind_speed` on"
+    high_wind_l_tether::Float64 = 0.0
 end
 
 """

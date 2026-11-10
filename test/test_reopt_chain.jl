@@ -69,6 +69,7 @@ RobustKiteControllers.set_depower_conversion!(l_dp -> (l_dp - 0.2) / 5)
                  feas = (; c1 = NaN), el_floor = 13.0, wing_lift = (az, el) -> zero(az),
                  power_gate_off = pred -> false, margin5 = Phase5MarginState(),
                  phase5_margin_at = (az, el) -> 1.7, opt_depower_log = NamedTuple[],
+                 opt_steering = RobustKiteControllers.SteeringLimits(; max = 0.32, rate = 0.2),
                  project_set = (; v_wind = 8.0), wc = nothing, rc = nothing)
         st = RunState(; n_path = length(fec.az_path), fig8_idx_progress = length(fec.az_path),
                       opt_paths_raw = [flown], opt_paths_at = [(0.0, 0)], opt_power_pred = power,

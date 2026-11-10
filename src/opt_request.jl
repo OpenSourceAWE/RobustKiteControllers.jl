@@ -32,8 +32,10 @@ function awetrim_depower_to_v3kite(l_dp, tos)
     return Float64(f(l_dp)) + tos.seed.depower_offset
 end
 
-"AWETrim's own bounds on `input_depower`, from `src/awetrim/utils/defaults.py` [m]."
-const DEPOWER_SEED_BOUNDS = (1.1, 2.3)
+"The ROM's depower band, `validity.input_depower` of AWETrim's
+`rom_config_aerostructural.yaml`, to which the server clips its `input_depower` box [m].
+Its powered end is 1.7 m since 2026-11-10: the 2025 flights stall already there."
+const DEPOWER_SEED_BOUNDS = (1.7, 2.6)
 
 """
     depower_seed(tos, wind_speed) -> Float64
@@ -194,6 +196,17 @@ function min_turn_radius_request(fcs, tos; scale = 1.0, c1 = nothing,
     isnothing(coeffs) && return nothing
     return scale * margin / (coeffs.c1 * fcs.course.max_steering)
 end
+
+"""
+    steering_limits_from(fcs, set) -> SteeringLimits
+
+The KCU as the optimizer must respect it: the course controller's command limit
+`fcs.course.max_steering` and the steering tape's rate limit `set.v_steering` [1/s] of
+the run's settings. Sent with every `/init`, so the server plans no turn the KCU cannot
+fly; its own box is the ROM's (0.357, 0.29 1/s on the LEI-V3).
+"""
+steering_limits_from(fcs, set) =
+    SteeringLimits(; max = Float64(fcs.course.max_steering), rate = Float64(set.v_steering))
 
 """
     request_constraints(tos, fcs, inflow, cap_wind, l_opt)

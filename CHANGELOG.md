@@ -4,6 +4,34 @@
 
 ### Changed
 
+- Flies against AWETrim's 2026-11-05 LEI-V3 ROM (`rom_config_aerostructural.yaml`), which
+  needs AWETrim with the reel-out angle-of-attack box from the ROM's validity (branch
+  `feat/server-aero-forces`). At the same power tape the two models do not pull the same:
+  at matched lift + drag resultant V3Kite's tape is the ROM's minus 0.372 m (std 0.010 m,
+  from `validate_lift_drag.jl` and AWETrim's `examples/server/identify_depower_offset.py`),
+  so `depower_offset` is -0.074. Power ratio before / after: Cabauw 4 m/s 0.52 / 1.11,
+  Maasvlakte 4 m/s 0.58 / 1.21; with it Cabauw 7 0.99, Cabauw 10 0.89, Maasvlakte 7 1.07,
+  Maasvlakte 10 0.96 (2026-11-08). Redo the offset whenever the ROM or V3Kite changes.
+- The depower seed bounds are the new ROM's band, 1.5-2.6 m (was 1.1-2.3), and
+  `input_depower_seed_max` 2.45 m (was 1.85): at 10 m/s the optimum is near 2.4 m and a
+  seed at 1.85 m cannot be marched.
+- The high-wind figure is larger: `pattern_elevation_amplitude_max_high` 17° (was 13°)
+  from 12.5 m/s at 100 m (was 13.2, so Maasvlakte 10 m/s gets it), with
+  `guess_el_center_high` 33° (was 30°). With 13° the 10 m/s laps were faster than the
+  0.29 1/s steering slew.
+- A startup wind ramp (`guess.startup_wind_ramp_start`, `startup_wind_ramp_step`; 7 and
+  1 m/s, `0.0` = off): above the start wind the startup solve is solved there and the wind
+  stepped up warm through `/step` to the run's. Cabauw 10 m/s failed cold from every seed.
+- A high-wind start length next to the low-wind schedule (`low_wind:` section of
+  `fc_settings_reelout.yaml`, `high_wind_speed` / `high_wind_l_tether`,
+  `high_wind_l_tether()`): at and above 16 m/s at 100 m reel-out starts at 180 m.
+  Cabauw 10 m/s (19.3 m/s there) has no feasible startup path at 150 m with the
+  steering slew and the 50 m height floor; Cabauw 7 and Maasvlakte 10 still start at 150 m.
+- Known open: Maasvlakte 4 m/s reels out at a
+  power ratio of 1.21 but fails the phase-5 transition at the end of reel-out, flying
+  more powered (rel_depower ~0.19-0.21) than the turn-rate table covers (0.20-0.375),
+  which should be extended to about 0.18-0.40.
+
 - `bin/install` records the Julia version in `install_version_<version>.txt` and moves
   the system image to `bin/kps-image-<version>.so.bak` if it was installed with another
   Julia version (or the file is missing); `bin/run_julia` stops if the Julia version

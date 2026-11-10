@@ -78,6 +78,21 @@ Base.@kwdef struct DepowerSpec
 end
 
 """
+    SteeringLimits(; max = nothing, rate = nothing)
+
+The kite's steering actuator as the optimizer must respect it: `|u_s| <= max` and
+`|d u_s / dt| <= rate` [1/s] at every node, in the ROM's steering unit, the
+steering-tape half-difference over 1.4 m, which is V3Kite's `rel_steering` too
+(`V3_STEERING_GAIN`). The server only NARROWS its own box with them (LEI-V3 ROM:
+0.357 and 0.29 1/s), so a path it returns is one the KCU can fly. Built from the
+run's settings by [`steering_limits_from`](@ref).
+"""
+Base.@kwdef struct SteeringLimits
+    max::Union{Float64, Nothing} = nothing
+    rate::Union{Float64, Nothing} = nothing
+end
+
+"""
     DepowerReply
 
 The depower the returned path was optimized for — FLY THIS, or the reported
@@ -120,6 +135,8 @@ Base.@kwdef struct InitParams
     depower::Union{DepowerSpec, Nothing} = nothing
     min_turn_radius::Union{Float64, Nothing} = nothing   # [m], 0/nothing = off
     pattern_limits::Union{PatternLimits, Nothing} = nothing
+    # The KCU's steering range and rate; the session keeps them for every step.
+    steering_limits::Union{SteeringLimits, Nothing} = nothing
 end
 
 Base.@kwdef struct StepParams
@@ -201,6 +218,9 @@ StructTypes.StructType(::Type{DepowerSpec}) = StructTypes.Struct()
 StructTypes.StructType(::Type{PatternLimits}) = StructTypes.Struct()
 # Left out of the JSON while unset: a server older than the field rejects the key even as null.
 StructTypes.omitempties(::Type{PatternLimits}) = (:climb_angle_max,)
+StructTypes.StructType(::Type{SteeringLimits}) = StructTypes.Struct()
+StructTypes.omitempties(::Type{SteeringLimits}) = (:max, :rate)
+StructTypes.omitempties(::Type{InitParams}) = (:steering_limits,)
 
 # ---------------------------------------------------------------------------
 # Failed-request cache
@@ -255,8 +275,12 @@ The key is a [`stable_hash`](@ref), not Base's `hash`, so it survives a Julia
 upgrade. `"v4-"` retires the `hash`-based `"v3-"` keys.
 """
 function opt_request_key(p::InitParams)
+    # `steering_limits` came last and is left out while unset, so the keys cached before it
+    # stay valid (as `PatternLimits`' `symmetric`).
     return "v4-" * stable_hash(Tuple(_key_fields(getfield(p, f))
-                                      for f in fieldnames(InitParams) if f !== :name))
+                                      for f in fieldnames(InitParams)
+                                      if f !== :name &&
+                                         !(f === :steering_limits && isnothing(p.steering_limits))))
 end
 
 """
@@ -276,7 +300,7 @@ stable_hash(x) = bytes2hex(sha256(repr(x)))[1:16]
 # holding a `Vector` goes by the vector's identity, not its contents, so two
 # equal requests would never share a key.
 _key_fields(x::Union{WinchParams, InflowConditions, Trajectory, DepowerSpec, PatternLimits,
-                     StepParams}) =
+                     SteeringLimits, StepParams}) =
     Tuple(_key_fields(getfield(x, f)) for f in fieldnames(typeof(x)))
 # `symmetric` and `climb_angle_max` came last; each is left out while off, so the keys cached
 # before it stay valid.
@@ -1413,7 +1437,8 @@ end
 
 """
     free_speed_reference(tos, wc, inflow, guess_az, guess_el, lengths;
-                         min_turn_radius = nothing, pattern_limits = nothing)
+                         min_turn_radius = nothing, pattern_limits = nothing,
+                         steering_limits = nothing)
         -> (; points, weighted) | nothing
 
 Mean reel-out power an OPTIMAL path could harvest with any winch inside
@@ -1435,7 +1460,8 @@ counts stay its own. A converged probe is stored as if applied: each is a cold
 chain of one step, and it IS the result the caller uses.
 """
 function free_speed_reference(tos, wc, inflow, guess_az, guess_el, lengths;
-                              min_turn_radius = nothing, pattern_limits = nothing)
+                              min_turn_radius = nothing, pattern_limits = nothing,
+                              steering_limits = nothing)
     n = tos.server.free_speed_reference_points
     (n < 2 || isempty(lengths)) && return nothing
     lo, hi = extrema(lengths)
@@ -1454,7 +1480,7 @@ function free_speed_reference(tos, wc, inflow, guess_az, guess_el, lengths;
                                 trajectory = Trajectory(collect(guess_az), collect(guess_el)),
                                 input_depower = depower_seed(tos, inflow.wind_speed),
                                 reg_weight = REG_WEIGHT,
-                                min_turn_radius, pattern_limits)
+                                min_turn_radius, pattern_limits, steering_limits)
             reply = chain_init(ref_chain, params)
             result = chain_step(ref_chain, StepParams(l, ref_winch, reply.trajectory))
             if !isnothing(result.metrics)

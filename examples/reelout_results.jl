@@ -191,7 +191,8 @@ function power_comparison(setup, st::RunState, sl, rp, p4)
         lengths_ro = Float64.(sl.var_10[rp.idx])
         fs_ref = free_speed_reference(tos, setup.rcs, setup.inflow, setup.guess_az, setup.guess_el,
                                       lengths_ro; min_turn_radius = st.opt_r_min,
-                                      pattern_limits = setup.opt_box)
+                                      pattern_limits = setup.opt_box,
+                                      steering_limits = setup.opt_steering)
         if isnothing(fs_ref)
             @warn "free_speed reference: no solve succeeded, omitting it from the summary."
         else

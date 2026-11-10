@@ -49,6 +49,11 @@ $(TYPEDFIELDS)
     guess_el_center_wind_ref = 0.0
     "Guess elevation offsets tried in order when the startup solve fails [deg]"
     startup_retry_el_offsets::Vector{Float64} = Float64[]
+    "Wind [m/s at the reference height] the startup solve starts at when the run's wind
+    is higher, stepping up warm to it; `0.0` = off (solve at the run's wind directly)"
+    startup_wind_ramp_start = 0.0
+    "Wind step of that ramp [m/s]"
+    startup_wind_ramp_step = 1.0
 end
 
 """

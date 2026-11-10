@@ -29,6 +29,24 @@ function low_wind_schedule(fcs::FC_Settings, v_ref)
 end
 
 """
+    high_wind_l_tether(fcs::FC_Settings, v_ref) -> Union{Float64, Nothing}
+
+The tether length reel-out starts at in strong wind: `fcs.low_wind.high_wind_l_tether`
+at and above `high_wind_speed` [m/s] at `low_wind_height`, `nothing` below it and when
+`high_wind_speed` is `0.0`. A short tether in strong wind laps a figure big enough for the
+steering slew too fast, or puts its bottom under the height floor: on AWETrim's 2026-11-05
+ROM Cabauw 10 m/s (19.3 m/s at 100 m) has no feasible startup path at 150 m and flies
+from 180 m (2026-11-08).
+"""
+function high_wind_l_tether(fcs::FC_Settings, v_ref)
+    lw = fcs.low_wind
+    (lw.high_wind_speed > 0 && v_ref >= lw.high_wind_speed) || return nothing
+    lw.high_wind_l_tether > 0 ||
+        error("low_wind: high_wind_speed is set but high_wind_l_tether is not.")
+    return lw.high_wind_l_tether
+end
+
+"""
     low_wind_reference(fcs::FC_Settings, project_set) -> Float64
 
 The wind speed [m/s] [`low_wind_schedule`](@ref) is keyed on: the project's `v_wind`
@@ -43,7 +61,8 @@ low_wind_reference(fcs::FC_Settings, project_set) =
     apply_low_wind_schedule!(fcs, tos, project_set; keep = ()) -> NamedTuple
 
 Overwrite the starting tether length `project_set.l_tether` and `tos.guess.guess_el_center` with
-[`low_wind_schedule`](@ref) at [`low_wind_reference`](@ref). A name in `keep` (e.g. the
+[`low_wind_schedule`](@ref) at [`low_wind_reference`](@ref), or only the length with
+[`high_wind_l_tether`](@ref) in strong wind. A name in `keep` (e.g. the
 keys of a run's overrides) is left alone; `tos = nothing` skips the guess, for a caller
 without the optimizer's settings. Call it once, after the wind-speed override and
 before anything is built from the settings. Returns `(; v_ref, values)`, `values`
@@ -63,8 +82,16 @@ function apply_low_wind_schedule!(fcs::FC_Settings, tos, project_set; keep = ())
     end
     v_ref = low_wind_reference(fcs, project_set)
     values = low_wind_schedule(fcs, v_ref)
-    isnothing(values) && return (; v_ref, values)
     keep = Symbol.(collect(keep))
+    if isnothing(values)
+        l_high = high_wind_l_tether(fcs, v_ref)
+        isnothing(l_high) && return (; v_ref, values)
+        kept = :l_tether in keep || :l_tethers in keep
+        kept || (project_set.l_tether = l_high)
+        @info @sprintf("High-wind start at %.2f m/s (%.0f m): l_tether = %.1f m%s.",
+                       v_ref, lw.low_wind_height, l_high, kept ? " (override kept)" : "")
+        return (; v_ref, values = (; l_tether = l_high))
+    end
     :l_tether in keep || :l_tethers in keep || (project_set.l_tether = values.l_tether)
     isnothing(tos) || :guess_el_center in keep || (tos.guess.guess_el_center = values.guess_el_center)
     @info @sprintf("Low-wind schedule at %.2f m/s (%.0f m): l_tether = %.1f m, guess_el_center = %.2f°%s.",

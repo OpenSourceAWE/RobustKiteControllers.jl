@@ -186,6 +186,33 @@ end
     r = fly_startup()
     (; setup, st) = r
 
+    @testset "startup_wind_ramp" begin
+        # Above startup_wind_ramp_start the startup solve runs at that wind and the wind is
+        # stepped up warm by /step to the run's; the reply at the run's wind is returned.
+        fs = fake_server()
+        try
+            tos = deepcopy(setup.tos)
+            tos.server.opt_warm_start_awe_trim = 0.0
+            tos.guess.startup_wind_ramp_start = 7.0
+            tos.guess.startup_wind_ramp_step = 1.0
+            su = (; opt_chain = OptChain(fs.url; successes = false, failures = false), tos,
+                  winch = (; use_awe_trim = 0.5), rcs = setup.rcs, l_set = setup.l_set,
+                  winch_first_lap = setup.winch_first_lap)
+            p = startup_params(setup, setup.el_center_seed)
+            p = RobustKiteControllers.InitParams(;
+                (k => getfield(p, k) for k in fieldnames(RobustKiteControllers.InitParams))...,
+                inflow_conditions = RobustKiteControllers.with_wind(p.inflow_conditions, 9.0))
+            @test_logs (:info, r"wind ramp") match_mode = :any startup_solve(su, p)
+            winds = [b["inflow_conditions"]["wind_speed"] for (path, b) in fs.log
+                     if path in ("/init", "/step") && haskey(b, "inflow_conditions") &&
+                        !isnothing(b["inflow_conditions"])]
+            @test first(winds) == 7.0 && last(winds) == 9.0
+            @test count(==("/step"), paths(fs)) == 3   # 7 (first lap), 8, 9 m/s
+        finally
+            close(fs.server)
+        end
+    end
+
     @testset "seeding_solve" begin
         # With opt_warm_start_awe_trim above the winch's use_awe_trim, a seeding /step at the
         # unreduced winch goes before the first-lap one, which starts from its trajectory.
@@ -193,6 +220,7 @@ end
         try
             tos = deepcopy(setup.tos)
             tos.server.opt_warm_start_awe_trim = 1.0
+            tos.guess.startup_wind_ramp_start = 0.0   # the seeding solve alone, no wind ramp
             su = (; opt_chain = OptChain(fs.url; successes = false, failures = false), tos,
                   winch = (; use_awe_trim = 0.5), rcs = setup.rcs, l_set = setup.l_set,
                   winch_first_lap = setup.winch_first_lap)

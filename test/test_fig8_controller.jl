@@ -1083,9 +1083,12 @@ end
         @test tos.box.pattern_elevation_amplitude_max == 8.5
         # 10° -> 11°: Cabauw 10 at f_high 7200 N needs 10.5-10.7° at 150 m (2026-09-23).
         # 11° -> 13°: with the wing drag Cabauw 10 needs more (2026-10-05, commit 1290d50).
-        @test tos.box.pattern_elevation_amplitude_max_high == 13.0
-        # Keyed on the 100 m wind: Maasvlakte 10 m/s is 12.9 there, Cabauw 7 m/s 13.5.
-        @test tos.box.pattern_elevation_amplitude_max_wind_ref == 13.2
+        # 13° -> 17°: on the 2026-11-05 ROM the 10 m/s laps outran the 0.29 1/s steering
+        # slew at 13° (2026-11-07).
+        @test tos.box.pattern_elevation_amplitude_max_high == 17.0
+        # Keyed on the 100 m wind: Maasvlakte 10 m/s is 12.9 there, Cabauw 7 m/s 13.5;
+        # 13.2 -> 12.5 so Maasvlakte 10 m/s gets the high cap too (2026-11-07).
+        @test tos.box.pattern_elevation_amplitude_max_wind_ref == 12.5
         @test tos.box.pattern_elevation_amplitude_max_wind_height == 100.0
         # 32° at and above the same wind: under the 45° climb limit Cabauw 10 needs ±28.4-28.8°,
         # and the startup solve 2-3° of room beyond (2026-10-03). 32° -> 36° with the wing drag
@@ -1155,6 +1158,17 @@ end
         @test fro.low_wind.low_wind_l_tether[end] == 150.0
         @test fro.low_wind.low_wind_guess_el_center[end] == TrajOptSettings("traj_opt.yaml").guess.guess_el_center
         @test low_wind_schedule(fro, 4.51).guess_el_center == 25.0
+        # high_wind_l_tether: off at 0.0, the length from the threshold on, an error without it.
+        @test isnothing(high_wind_l_tether(flw, 30.0))
+        flw.low_wind.high_wind_speed = 16.0
+        @test_throws ErrorException high_wind_l_tether(flw, 16.0)
+        flw.low_wind.high_wind_l_tether = 180.0
+        @test isnothing(high_wind_l_tether(flw, 15.9))
+        @test high_wind_l_tether(flw, 16.0) == 180.0
+        # The shipped threshold: Cabauw 10 m/s (19.3 at 100 m) starts at 180 m, Cabauw 7
+        # (13.5) and Maasvlakte 10 (12.9) at the files' 150 m (2026-11-08).
+        @test high_wind_l_tether(fro, 19.3) == 180.0
+        @test isnothing(high_wind_l_tether(fro, 13.5))
         tos = TrajOptSettings("traj_opt.yaml")
         # Below the struct's 1.0, but no longer for the old reason: the request is
         # scaled from this number and the optimizer honours it, so what the gate
